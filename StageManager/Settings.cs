@@ -48,6 +48,11 @@ namespace StageManager
 		/// </summary>
 		public string HideStrategy { get; set; } = HideStrategies.Minimize;
 
+		/// <summary>
+		/// Switching scenes only hides windows on the monitor(s) the new scene is on, so every monitor keeps its own stage.
+		/// </summary>
+		public bool PerMonitorStages { get; set; } = false;
+
 		/// <summary>Drag a window thumbnail out of the sidebar to add it to the current scene.</summary>
 		public bool EnableWindowPullToScene { get; set; } = true;
 

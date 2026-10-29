@@ -238,6 +238,53 @@ namespace StageManager.Tests
 		}
 
 		[Fact]
+		public void Without_per_monitor_stages_switching_hides_windows_on_every_monitor()
+		{
+			var h = new Harness();
+			var code = h.Windows.Existing("Code");
+			var slack = h.Windows.Existing("slack");
+			h.Strategy.Monitors[slack] = new IntPtr(2);
+			h.Start();
+
+			h.SwitchTo(h.SceneOf(code));
+
+			Assert.False(h.Strategy.IsVisible(slack));
+		}
+
+		[Fact]
+		public void Per_monitor_stages_only_hide_windows_on_the_switched_monitor()
+		{
+			var h = new Harness(Settings.Parse("""{ "PerMonitorStages": true }"""));
+			var code = h.Windows.Existing("Code");
+			var edge = h.Windows.Existing("msedge");
+			var slack = h.Windows.Existing("slack");
+			h.Strategy.Monitors[slack] = new IntPtr(2);
+			h.Start();
+
+			h.SwitchTo(h.SceneOf(code));
+
+			Assert.True(h.Strategy.IsVisible(code));
+			Assert.False(h.Strategy.IsVisible(edge));
+			Assert.True(h.Strategy.IsVisible(slack));
+		}
+
+		[Fact]
+		public void Per_monitor_stages_still_clear_every_monitor_for_the_desktop_view()
+		{
+			var h = new Harness(Settings.Parse("""{ "PerMonitorStages": true }"""));
+			var code = h.Windows.Existing("Code");
+			var slack = h.Windows.Existing("slack");
+			h.Strategy.Monitors[slack] = new IntPtr(2);
+			h.Start();
+			h.SwitchTo(h.SceneOf(code));
+
+			h.SwitchTo(null);
+
+			Assert.False(h.Strategy.IsVisible(code));
+			Assert.False(h.Strategy.IsVisible(slack));
+		}
+
+		[Fact]
 		public void A_just_hidden_scene_cannot_bounce_back_immediately()
 		{
 			var h = new Harness();
