@@ -505,7 +505,7 @@ namespace StageManager
 
 		private void NavigateToProjectPage()
 		{
-			Process.Start(new ProcessStartInfo("https://github.com/awaescher/StageManager")
+			Process.Start(new ProcessStartInfo("https://github.com/loganfred/StageManager")
 			{
 				UseShellExecute = true
 			});
