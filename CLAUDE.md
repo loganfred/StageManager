@@ -7,16 +7,19 @@ WPF tray app (.NET 8, `net8.0-windows`, WPF + WinForms enabled) that mimics macO
 
 ## Commands
 - Build: `dotnet build StageManager.sln`
-- Run: `dotnet run --project StageManager`. Quit via the tray icon's context menu → Quit. Killing the process skips cleanup and leaves other windows minimized and desktop icons hidden.
+- Run: `dotnet run --project StageManager`. Quit via the tray icon's context menu → Quit. Only one instance can run (named mutex). Killing the process skips cleanup and leaves other windows minimized; the original desktop-icon state is remembered in `session.txt` and restored by the next clean exit.
+- Logs: `%LOCALAPPDATA%\StageManager\stagemanager.log` (`Diagnostics/Log`).
 - Release single-file exe (what CI does; CI only publishes a GitHub release on a manual `workflow_dispatch` run): `dotnet publish StageManager -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true -o Artifacts`
 - There are no tests and no linter. The build has ~120 pre-existing nullable warnings; don't add new ones.
 
 ## Architecture
+- `App` creates `MainWindow` in `OnStartup` (no `StartupUri`) after taking the single-instance mutex. Its unhandled-exception handlers call `SceneManager.Active?.Stop()` to put the desktop back. Any code that hides windows or changes desktop icons must stay undoable through `Stop()`, which is idempotent and callable from any thread.
 - `MainWindow` (sidebar UI + tray icon) owns everything. `OnContentRendered` creates `WindowsManager` → `SceneManager`, builds the initial `SceneModel`s, and switches to the foreground window's scene. `OnClosed` calls `SceneManager.Stop()` (re-shows all windows, restores desktop icons), then `Environment.Exit(0)`.
 - `Native/WindowsManager` enumerates top-level windows at start (`EnumWindows` + `Win32Helper.IsAppWindow`), then tracks them through `SetWinEventHook` callbacks (show/destroy/cloak/minimize/foreground/move/location). Those callbacks arrive on the thread that called `Start`, which is why `SceneManager.Start` asserts it runs on the main thread. It also runs a `WH_MOUSE_LL` hook on its own message-loop thread. It emits `WindowCreated/Destroyed/Updated` and `UntrackedFocus`; the latter is how a click on the desktop `WorkerW` is detected.
 - `Native/WindowsWindow` is the `IWindow` wrapper over an HWND. `IsCandidate()` holds the class/process ignore lists that decide which windows get managed.
 - `SceneManager`: a `Scene` is a group of windows keyed by `GetWindowGroupKey` (process name). `SwitchTo(scene)` shows that scene's windows and hides all others through the active `IWindowStrategy` (`NormalizeAndMinimizeWindowStrategy`; the other `Strategies/` are unused alternatives). `_suspend` suppresses re-entrant foreground events while switching. `IsReentrancy` blocks bouncing back to a just-hidden scene for 1s (e.g. Teams' floating call window). `SwitchTo(null)` is "desktop view" and shows the desktop icons.
 - UI: `Model/SceneModel` and `WindowModel` are view models, and `DwmThumbnail` renders live DWM thumbnails in the sidebar. `MainWindow` slides off-screen when a current window overlaps the sidebar (500ms `OverlapCheck` timer on a thread-pool thread, so it races with the UI thread) and flies back in when the mouse reaches the left 44px.
+- Pause: tray "Pause" or Ctrl+Alt+Shift+P (`RegisterHotKey` + `WndProc` hook in `MainWindow`). `SceneManager.Pause()` restores everything and ignores window events; `Resume()` re-applies the current stage through `ApplyStage` without raising selection events.
 - Input: a second global mouse hook (SharpHook `TaskPoolGlobalHook`, run with `GlobalHookType.Mouse` so no keyboard hook is installed) in `MainWindow` handles dragging a window out of a sidebar scene into the current one (`EnableWindowPullToScene`). The hook is stopped while the tray context menu is open.
 - Side effects that must stay reversible:
   - windows are minimized via `ShowWindow`;
