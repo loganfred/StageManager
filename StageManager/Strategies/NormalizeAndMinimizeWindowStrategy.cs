@@ -1,4 +1,5 @@
-﻿using StageManager.Native.PInvoke;
+﻿using StageManager.Native;
+using StageManager.Native.PInvoke;
 using StageManager.Native.Window;
 
 namespace StageManager.Strategies
@@ -19,5 +20,7 @@ namespace StageManager.Strategies
 		public void RestoreAll()
 		{
 		}
+
+		public System.IntPtr GetMonitor(IWindow window) => Monitors.Of(window.Handle);
 	}
 }

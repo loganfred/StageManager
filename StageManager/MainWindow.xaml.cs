@@ -390,6 +390,29 @@ namespace StageManager
 
 		private void ApplyWindowMode()
 		{
+			// with a monitor left of the primary, sliding out would just move the sidebar onto that monitor: fade it instead
+			// (with AllowsTransparency, a fully transparent window lets clicks through)
+			if (Monitors.AnyLeftOfPrimary)
+			{
+				if (Left != 0)
+				{
+					BeginAnimation(LeftProperty, null);
+					Left = 0;
+				}
+
+				var opacity = Mode == StageManager.WindowMode.OffScreen ? 0.0 : 1.0;
+				if (Opacity != opacity)
+					BeginAnimation(OpacityProperty, new DoubleAnimation(opacity, new Duration(TimeSpan.FromSeconds(0.3))));
+
+				return;
+			}
+
+			if (Opacity != 1.0)
+			{
+				BeginAnimation(OpacityProperty, null);
+				Opacity = 1.0;
+			}
+
 			var newLeft = Mode == StageManager.WindowMode.OffScreen ? (-1 * Width) : 0.0;
 			if (Left == newLeft)
 				return;
@@ -438,7 +461,8 @@ namespace StageManager
 			_mouse.X = e.Data.X;
 			_mouse.Y = e.Data.Y;
 
-			if (Mode == WindowMode.OffScreen && e.Data.X <= _flyInEdgePx)
+			// x >= 0: the strip is the primary monitor's left edge, not a monitor further left
+			if (Mode == WindowMode.OffScreen && e.Data.X >= 0 && e.Data.X <= _flyInEdgePx)
 			{
 				Dispatcher.Invoke(() => Mode = WindowMode.Flyover);
 			}
@@ -452,8 +476,11 @@ namespace StageManager
 
 			try
 			{
-				var currentWindows = sceneManager.GetCurrentWindows().ToArray(); // in case the enumeration changes
-				UpdateModeByWindows(currentWindows);
+				// only windows actually showing on the sidebar's monitor can cover it
+				var primary = Monitors.Primary;
+				var showing = sceneManager.GetManagedWindows().ToArray() // in case the enumeration changes
+					.Where(w => !w.IsMinimized && Monitors.Showing(w.Handle) == primary);
+				UpdateModeByWindows(showing);
 			}
 			catch (Exception ex)
 			{
@@ -467,7 +494,7 @@ namespace StageManager
 
 			var anyOverlappingWindows = windows.Any(w => doesOverlap(w.Location));
 
-			var containsMouse = _mouse.X <= _sidebarWidthPx;
+			var containsMouse = _mouse.X >= 0 && _mouse.X <= _sidebarWidthPx;
 			var setMode = Mode == WindowMode.OnScreen && !containsMouse
 							|| Mode == WindowMode.OffScreen
 							|| (Mode == WindowMode.Flyover && !containsMouse);

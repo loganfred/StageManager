@@ -121,6 +121,11 @@ namespace StageManager.Tests
 
 		public void RestoreAll() => Hidden.Clear();
 
+		/// <summary>Monitor per window; unlisted windows are on monitor 1.</summary>
+		public Dictionary<IWindow, IntPtr> Monitors { get; } = new();
+
+		public IntPtr GetMonitor(IWindow window) => Monitors.TryGetValue(window, out var monitor) ? monitor : new IntPtr(1);
+
 		public bool IsVisible(IWindow window) => !Hidden.Contains(window);
 	}
 

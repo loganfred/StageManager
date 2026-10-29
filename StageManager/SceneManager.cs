@@ -322,6 +322,13 @@ namespace StageManager
 		{
 			var otherWindows = GetSceneableWindows().Except(scene?.Windows ?? Array.Empty<IWindow>()).ToArray();
 
+			// per-monitor stages: leave the other monitors' stages alone (the desktop view still clears every monitor)
+			if (_settings.PerMonitorStages && scene is object)
+			{
+				var monitors = scene.Windows.Select(WindowStrategy.GetMonitor).ToHashSet();
+				otherWindows = otherWindows.Where(w => monitors.Contains(WindowStrategy.GetMonitor(w))).ToArray();
+			}
+
 			if (scene is object)
 			{
 				foreach (var w in scene.Windows)
@@ -443,7 +450,10 @@ namespace StageManager
 			return _scenes;
 		}
 
-		public IEnumerable<IWindow> GetCurrentWindows() => _current?.Windows ?? GetSceneableWindows();
+		/// <summary>
+		/// Every window that belongs to a scene, shown or hidden.
+		/// </summary>
+		public IEnumerable<IWindow> GetManagedWindows() => GetSceneableWindows() ?? Enumerable.Empty<IWindow>();
 
 		private const char WindowKeySeparator = '#';
 

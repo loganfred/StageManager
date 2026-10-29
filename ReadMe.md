@@ -31,6 +31,7 @@ On first run the app writes its defaults to `%APPDATA%\StageManager\settings.jso
 | `FlyInEdgeWidth` | `44` | Width (at 100% scaling) of the left screen strip that brings the hidden sidebar back |
 | `PauseHotkey` | `"Ctrl+Alt+Shift+P"` | Pause/resume hotkey: modifiers (`Ctrl`, `Alt`, `Shift`, `Win`) plus a WPF key name (`P`, `F9`, `D1`). `""` disables it |
 | `HideStrategy` | `"Minimize"` | How other scenes' windows are hidden. `"OffScreen"` parks them just below the screen instead: no minimize animation, live sidebar thumbnails, and maximized or snapped sizes are kept. Either way they stay in the taskbar and Alt+Tab |
+| `PerMonitorStages` | `false` | Switching scenes only hides windows on the monitor(s) the new scene is on, so each monitor keeps its own stage. The sidebar stays on the primary monitor |
 | `EnableWindowPullToScene` | `true` | Drag a thumbnail out of the sidebar to add that window to the current scene |
 | `EnableWindowDropToScene` | `false` | Drag a window onto a sidebar scene to move it there (experimental) |
 | `IgnoredProcesses` | `[]` | Process names (no `.exe`) to never manage, e.g. `["KeePassXC"]` |

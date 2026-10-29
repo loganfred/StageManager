@@ -1,4 +1,5 @@
 ﻿using StageManager.Diagnostics;
+using StageManager.Native;
 using StageManager.Native.PInvoke;
 using StageManager.Native.Window;
 using System;
@@ -34,7 +35,7 @@ namespace StageManager.Strategies
 		private readonly Dictionary<IntPtr, ParkedWindow> _parked = new();
 		private readonly object _lock = new();
 
-		private readonly record struct ParkedWindow(int Left, int Top, int ParkedTop);
+		private readonly record struct ParkedWindow(int Left, int Top, int Width, int Height, int ParkedTop);
 
 		public void Show(IWindow window)
 		{
@@ -74,7 +75,7 @@ namespace StageManager.Strategies
 				if (_parked.ContainsKey(window.Handle))
 					return;
 
-				_parked[window.Handle] = new ParkedWindow(rect.Left, rect.Top, parkedTop);
+				_parked[window.Handle] = new ParkedWindow(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top, parkedTop);
 				SaveJournal();
 			}
 
@@ -98,6 +99,17 @@ namespace StageManager.Strategies
 			}
 
 			DeleteJournal();
+		}
+
+		public IntPtr GetMonitor(IWindow window)
+		{
+			lock (_lock)
+			{
+				if (_parked.TryGetValue(window.Handle, out var p))
+					return Monitors.OfRect(p.Left, p.Top, p.Left + p.Width, p.Top + p.Height);
+			}
+
+			return Monitors.Of(window.Handle);
 		}
 
 		/// <summary>

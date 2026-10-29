@@ -40,7 +40,7 @@ Goal: take this prototype to something reliable for daily use. Each item lands o
 - [x] `feat/hide-strategy`: `HideStrategy: "OffScreen"` parks windows below the screen instead of minimizing. True DWM cloaking isn't possible for other processes' windows without undocumented, build-specific COM interfaces, so parked windows still show in the taskbar and Alt+Tab
 - [x] `feat/multi-app-sets`: sets you build by moving an app's windows are remembered (`groups.json`) and rebuilt after a restart; `OneWindowPerScene` and `SeparateWindowApps` for "one at a time"
 - [x] `feat/add-to-stage-gesture`: Shift+click adds a scene to the current stage; dragging a thumbnail out pulls that window (not just the scene's last one)
-- [ ] `feat/multi-monitor`: per-monitor strip and stage
+- [x] `feat/multi-monitor`: `PerMonitorStages` keeps a stage per monitor; sidebar overlap, fly-in and slide-out are now correct with monitors beside the primary. The sidebar itself stays on the primary monitor (a strip per monitor would need one sidebar window per monitor)
 - [ ] `feat/virtual-desktops`
 
 ## Phase 4: Maintainability (`test/scene-logic`)
