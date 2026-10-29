@@ -43,6 +43,8 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  # Releases are cut only from a manual run (Actions tab → Run workflow)
+  workflow_dispatch:
 
 jobs:
 
@@ -66,7 +68,7 @@ jobs:
 
     # Semantic Versioning
     - name: Bump version and push tag
-      if: github.event_name == 'push'
+      if: github.event_name == 'workflow_dispatch'
       id: tag_version
       uses: mathieudutour/github-tag-action@v5.6
       with:
@@ -86,7 +88,7 @@ jobs:
 
     # Create the app package by building and packaging the Windows Application Packaging project
     - name: Build and publish
-      run: dotnet publish --configuration ${{ matrix.configuration }} --output ${{ env.OutputDir }} --self-contained -p:PublishReadyToRun=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+      run: dotnet publish StageManager --configuration ${{ matrix.configuration }} --output ${{ env.OutputDir }} --runtime win-x64 --self-contained -p:PublishReadyToRun=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
       env:
         OutputDir: ./Artifacts
         Configuration: ${{ matrix.configuration }}
@@ -100,7 +102,7 @@ jobs:
 
     # Create the release:  https://github.com/actions/create-release
     - name: Create release
-      if: github.event_name == 'push'
+      if: github.event_name == 'workflow_dispatch'
       id: create_release
       uses: softprops/action-gh-release@v1
       with:
