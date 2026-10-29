@@ -53,16 +53,17 @@ namespace StageManager.Model
 			if (icon is null)
 				return null;
 
-			//// TODO check memory leaks
+			// CreateBitmapSourceFromHIcon copies the pixels, so the icon (and its HICON) can be released right away
+			using (icon)
+			{
+				var imageSource = Imaging.CreateBitmapSourceFromHIcon(
+					icon.Handle,
+					Int32Rect.Empty,
+					BitmapSizeOptions.FromEmptyOptions());
 
-			var bmp = System.Drawing.Bitmap.FromHicon(icon.Handle);
-
-			var imageSource = Imaging.CreateBitmapSourceFromHIcon(
-				icon.Handle,
-				Int32Rect.Empty,
-				BitmapSizeOptions.FromEmptyOptions());
-
-			return imageSource;
+				imageSource.Freeze();
+				return imageSource;
+			}
 
 			// Alternativ - vergleichen
 
