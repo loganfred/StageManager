@@ -184,6 +184,60 @@ namespace StageManager.Tests
 		}
 
 		[Fact]
+		public void Adding_a_scene_to_the_stage_moves_all_its_windows_and_remembers_the_set()
+		{
+			var h = new Harness();
+			var code = h.Windows.Existing("Code");
+			var edge1 = h.Windows.Existing("msedge");
+			var edge2 = h.Windows.Existing("msedge");
+			h.Start();
+			h.SwitchTo(h.SceneOf(code));
+			var stage = h.SceneOf(code);
+
+			h.Scenes.AddToCurrent(h.SceneOf(edge1)).GetAwaiter().GetResult();
+
+			Assert.Same(stage, h.SceneOf(edge1));
+			Assert.Same(stage, h.SceneOf(edge2));
+			Assert.True(h.Strategy.IsVisible(edge1));
+			Assert.True(h.Strategy.IsVisible(edge2));
+			Assert.Single(h.Scenes.GetScenes());
+			Assert.Equal("Code", h.Groups.Get("msedge"));
+		}
+
+		[Fact]
+		public void Adding_a_scene_in_the_desktop_view_just_switches_to_it()
+		{
+			var h = new Harness();
+			var code = h.Windows.Existing("Code");
+			var edge = h.Windows.Existing("msedge");
+			h.Start();
+
+			h.Scenes.AddToCurrent(h.SceneOf(edge)).GetAwaiter().GetResult();
+
+			Assert.True(h.Strategy.IsVisible(edge));
+			Assert.False(h.Strategy.IsVisible(code));
+			Assert.Equal(2, h.Scenes.GetScenes().Count());
+		}
+
+		[Fact]
+		public void Pulling_a_thumbnail_moves_that_window_onto_the_stage()
+		{
+			var h = new Harness();
+			var code = h.Windows.Existing("Code");
+			var edge1 = h.Windows.Existing("msedge");
+			var edge2 = h.Windows.Existing("msedge");
+			h.Start();
+			h.SwitchTo(h.SceneOf(code));
+
+			h.Scenes.PopWindowFrom(h.SceneOf(edge1), edge1).GetAwaiter().GetResult();
+
+			Assert.Same(h.SceneOf(code), h.SceneOf(edge1));
+			Assert.NotSame(h.SceneOf(code), h.SceneOf(edge2));
+			Assert.True(h.Strategy.IsVisible(edge1));
+			Assert.False(h.Strategy.IsVisible(edge2));
+		}
+
+		[Fact]
 		public void A_just_hidden_scene_cannot_bounce_back_immediately()
 		{
 			var h = new Harness();

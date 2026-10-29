@@ -394,15 +394,38 @@ namespace StageManager
 			await MoveWindow(source, window, targetScene);
 		}
 
-		public async Task PopWindowFrom(Scene sourceScene)
+		/// <summary>
+		/// Moves <paramref name="window"/> (by default the scene's last one) from a sidebar scene onto the current stage.
+		/// </summary>
+		public async Task PopWindowFrom(Scene sourceScene, IWindow? window = null)
 		{
 			if (sourceScene is null || _current is null || sourceScene.Equals(_current))
 				return;
 
-			var window = sourceScene.Windows.LastOrDefault();
+			window = window is null ? sourceScene.Windows.LastOrDefault() : sourceScene.Windows.FirstOrDefault(w => w.Handle == window.Handle);
 
 			if (window is object)
 				await MoveWindow(sourceScene, window, _current).ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Adds every window of <paramref name="scene"/> to the current stage (Shift+click, like macOS).
+		/// In the desktop view there is no stage to add to, so this just switches.
+		/// </summary>
+		public async Task AddToCurrent(Scene scene)
+		{
+			if (_paused || scene is null)
+				return;
+
+			if (_current is null || scene.Equals(_current))
+			{
+				await SwitchTo(scene).ConfigureAwait(true);
+				return;
+			}
+
+			var target = _current;
+			foreach (var window in scene.Windows.ToArray())
+				await MoveWindow(scene, window, target).ConfigureAwait(true);
 		}
 
 		private IEnumerable<IWindow> GetSceneableWindows() => WindowsManager?.Windows?.Where(w => !string.IsNullOrEmpty(w.ProcessFileName) && !string.IsNullOrEmpty(w.Title));
