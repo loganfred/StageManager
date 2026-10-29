@@ -64,7 +64,7 @@ namespace StageManager
 					return;
 				}
 
-				Current = (JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath), _jsonOptions) ?? new Settings()).Normalized();
+				Current = Parse(File.ReadAllText(FilePath));
 				Log.Info($"Loaded settings from {FilePath}");
 			}
 			catch (Exception ex)
@@ -73,6 +73,11 @@ namespace StageManager
 				Log.Error($"Could not read {FilePath}; using defaults", ex);
 			}
 		}
+
+		/// <summary>
+		/// Deserializes settings JSON (comments and trailing commas allowed) and replaces out-of-range values with defaults.
+		/// </summary>
+		internal static Settings Parse(string json) => (JsonSerializer.Deserialize<Settings>(json, _jsonOptions) ?? new Settings()).Normalized();
 
 		private Settings Normalized()
 		{
