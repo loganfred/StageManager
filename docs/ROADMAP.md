@@ -11,7 +11,8 @@ Goal: take this prototype to something reliable for daily use. Each item lands o
   - [x] AutoStart null-safety
   - [x] Unhook WinEvent and mouse hooks on stop; thread-safe window map
   - [x] GDI leak in icon conversion
-- [ ] Delete the mirrored `upstream-pr/*` and `upstream/feature/live-thumbnails` refs
+- [x] Delete the local mirrored `upstream-pr/*` and `upstream/feature/live-thumbnails` refs
+- [ ] Delete `origin/feature/live-thumbnails` on GitHub (already in `main`)
 
 ## Phase 0: CI and dependency hygiene (`chore/ci-deps`)
 - [ ] Release only on manual dispatch or tag push; add `-r win-x64` to publish
