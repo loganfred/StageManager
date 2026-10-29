@@ -31,22 +31,16 @@ namespace StageManager.Native
 
 			try
 			{
-				var process = GetProcessByWindowHandle(_handle);
+				using var process = GetProcessByWindowHandle(_handle);
 				_processId = process.Id;
 				_processName = process.ProcessName;
 				_processExecutable = process.MainModule.FileName;
-
-				try
-				{
-					_processFileName = Path.GetFileName(process.MainModule.FileName);
-				}
-				catch (System.ComponentModel.Win32Exception)
-				{
-					_processFileName = "--NA--";
-				}
+				_processFileName = Path.GetFileName(_processExecutable);
 			}
 			catch (Exception)
 			{
+				// MainModule throws for elevated and protected processes. Their windows are left unmanaged on purpose:
+				// UIPI would block minimizing and restoring them anyway (WindowsManager skips ProcessId < 0).
 				_processId = -1;
 				_processName = "";
 				_processFileName = "";
