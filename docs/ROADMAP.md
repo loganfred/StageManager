@@ -39,7 +39,7 @@ Goal: take this prototype to something reliable for daily use. Each item lands o
 - [x] `feat/settings`: JSON settings in `%APPDATA%\StageManager` (max scenes, edge width, hotkey, drag options, ignore lists, app groups), plus rolling log in `%LOCALAPPDATA%`. The hide-strategy setting comes with `feat/hide-strategy-cloak`, since minimizing is the only strategy today
 - [x] `feat/hide-strategy`: `HideStrategy: "OffScreen"` parks windows below the screen instead of minimizing. True DWM cloaking isn't possible for other processes' windows without undocumented, build-specific COM interfaces, so parked windows still show in the taskbar and Alt+Tab
 - [x] `feat/multi-app-sets`: sets you build by moving an app's windows are remembered (`groups.json`) and rebuilt after a restart; `OneWindowPerScene` and `SeparateWindowApps` for "one at a time"
-- [ ] `feat/add-to-stage-gesture`: Shift+click or drag to add a window to the current stage
+- [x] `feat/add-to-stage-gesture`: Shift+click adds a scene to the current stage; dragging a thumbnail out pulls that window (not just the scene's last one)
 - [ ] `feat/multi-monitor`: per-monitor strip and stage
 - [ ] `feat/virtual-desktops`
 

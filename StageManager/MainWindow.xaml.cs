@@ -43,7 +43,8 @@ namespace StageManager
 		private readonly DispatcherTimer _overlapCheckTimer;
 		private Point _mouse = new Point(0, 0);
 		private SceneModel _removedCurrentScene;
-		private SceneModel _mouseDownScene;
+		private SceneModel? _mouseDownScene;
+		private WindowModel? _mouseDownWindow;
 
 		private readonly bool EnableWindowDropToScene = Settings.Current.EnableWindowDropToScene;
 		private readonly bool EnableWindowPullToScene = Settings.Current.EnableWindowPullToScene;
@@ -58,7 +59,15 @@ namespace StageManager
 			_overlapCheckTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMilliseconds(TIMERINTERVAL_MILLISECONDS) };
 			_overlapCheckTimer.Tick += (_, _) => OverlapCheck();
 
-			SwitchSceneCommand = new ActionCommand(async model => await SceneManager!.SwitchTo(((SceneModel)model).Scene));
+			// Shift+click adds the scene's windows to the current stage instead of switching to it (as on macOS)
+			SwitchSceneCommand = new ActionCommand(async model =>
+			{
+				var scene = ((SceneModel)model).Scene;
+				if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+					await SceneManager!.AddToCurrent(scene);
+				else
+					await SceneManager!.SwitchTo(scene);
+			});
 		}
 
 		protected override void OnInitialized(EventArgs e)
@@ -256,6 +265,10 @@ namespace StageManager
 			if (EnableWindowDropToScene)
 				Dispatcher.BeginInvoke(_overlapCheckTimer.Stop);
 
+			// a press that doesn't start on the sidebar must not leave an earlier press's scene behind for the release to pull from
+			_mouseDownScene = null;
+			_mouseDownWindow = null;
+
 			var foregroundWindow = Win32.GetForegroundWindow();
 			if (foregroundWindow != _thisHandle)
 				return;
@@ -265,7 +278,7 @@ namespace StageManager
 				var screenPoint = new Point(e.Data.X, e.Data.Y);
 				this.Dispatcher.Invoke(() =>
 				{
-					_mouseDownScene = FindSceneByPoint(screenPoint);
+					(_mouseDownScene, _mouseDownWindow) = FindModelsByPoint(screenPoint);
 				});
 			}
 		}
@@ -294,17 +307,28 @@ namespace StageManager
 
 			if (EnableWindowPullToScene)
 			{
-				if (e.Data.X > _sidebarWidthPx && _mouseDownScene is object)
+				var scene = _mouseDownScene;
+				var window = _mouseDownWindow;
+				_mouseDownScene = null;
+				_mouseDownWindow = null;
+
+				// dropped outside the sidebar: pull the thumbnail that was grabbed onto the stage
+				if (e.Data.X > _sidebarWidthPx && scene is object)
 				{
 					this.Dispatcher.Invoke(() =>
 					{
-						SceneManager.PopWindowFrom(_mouseDownScene.Scene).SafeFireAndForget();
+						SceneManager.PopWindowFrom(scene.Scene, window?.Window).SafeFireAndForget();
 					});
 				}
 			}
 		}
 
-		private SceneModel FindSceneByPoint(Point p)
+		private SceneModel? FindSceneByPoint(Point p) => FindModelsByPoint(p).Scene;
+
+		/// <summary>
+		/// The sidebar scene, and the window thumbnail within it, under a screen point (physical pixels).
+		/// </summary>
+		private (SceneModel? Scene, WindowModel? Window) FindModelsByPoint(Point p)
 		{
 			var thisWindow = new WindowsWindow(_thisHandle);
 			var pointOnWindow = new Point(p.X - thisWindow.Location.X, p.Y - thisWindow.Location.Y);
@@ -314,22 +338,22 @@ namespace StageManager
 			pointOnWindow.X /= dpi.DpiScaleX;
 			pointOnWindow.Y /= dpi.DpiScaleY;
 
-			SceneModel model = null;
+			WindowModel? window = null;
 
 			var element = VisualTreeHelper.HitTest(this, pointOnWindow)?.VisualHit;
 
 			while (element is not null)
 			{
+				if (element is FrameworkElement { DataContext: WindowModel w })
+					window ??= w;
+
 				if (element is FrameworkElement { DataContext: SceneModel m })
-				{
-					model = m;
-					break;
-				}
+					return (m, window);
 
 				element = element.GetParentObject();
 			}
 
-			return model;
+			return (null, null);
 		}
 		private void SyncVisibilityByUpdatedTimeStamp()
 		{

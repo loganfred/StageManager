@@ -10,6 +10,8 @@ This prototype groups applications by their process. By switching between so cal
 
 Windows can be moved from one scene to another by dragging them onto scenes on the left.
 
+To build a stage from several apps, Shift+click a scene in the sidebar to add all of its windows to the current stage, or drag a single thumbnail out of the sidebar onto the stage.
+
 ## Usage
 
 Download and run the executable from the [Releases tab](https://github.com/awaescher/StageManager/releases/) or 
