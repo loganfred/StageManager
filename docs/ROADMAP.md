@@ -28,12 +28,12 @@ Goal: take this prototype to something reliable for daily use. Each item lands o
 - [x] Tray "Pause" (shows all windows) plus the global hotkey Ctrl+Alt+Shift+P
 
 ## Phase 2: Correctness and threading (`fix/threading`)
-- [ ] Move `OverlapCheck` to the dispatcher, or snapshot scenes under a lock (for now it catches and logs its own exceptions)
-- [ ] Use one global mouse hook (SharpHook's keyboard hook is already gone)
-- [ ] Recover from Explorer restarts (`TaskbarCreated`, re-resolve `WorkerW`)
-- [ ] Deliberately skip elevated windows (UIPI)
-- [ ] Small bugs: `AddInitialScenes` off-by-one, `SwitchToSceneByNewWindow` group key, `async void` handlers
-- [ ] Mouse-hook coordinates are physical pixels but `_lastWidth` is in DIPs
+- [x] `OverlapCheck` runs on a `DispatcherTimer` (UI thread)
+- [x] One global mouse hook: removed `WindowsManager`'s unused `WH_MOUSE_LL` hook and its thread
+- [x] Recover from Explorer restarts (`TaskbarCreated`, re-resolve `WorkerW`)
+- [x] Elevated/protected windows are skipped on purpose (documented in `WindowsWindow`)
+- [x] Small bugs: `SwitchToSceneByNewWindow` group key, `async void` handler, leaked `Process` handles, swallowed `SafeFireAndForget` exceptions. (`AddInitialScenes`' `i <= MAX_SCENES` is intentional; see its comment.)
+- [x] Sidebar hit tests use physical pixels (`_sidebarWidthPx`)
 
 ## Phase 3: Fit daily workflow
 - [ ] `feat/settings`: JSON settings in `%APPDATA%\StageManager` (max scenes, edge width, ignore lists, strategy, grouping), plus rolling log in `%LOCALAPPDATA%`
