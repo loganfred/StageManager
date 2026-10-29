@@ -1,0 +1,27 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+WPF tray app (.NET 8, `net8.0-windows`, WPF + WinForms enabled) that mimics macOS Stage Manager on Windows 10 2004+. Fork of awaescher/StageManager (upstream is unmaintained); window-tracking code under `StageManager/Native/` was adapted from workspacer. Planned work and status live in `docs/ROADMAP.md`.
+
+## Commands
+- Build: `dotnet build StageManager.sln`
+- Run: `dotnet run --project StageManager`. Quit via the tray icon's context menu → Quit. Killing the process skips cleanup and leaves other windows minimized and desktop icons hidden.
+- Release single-file exe (what CI does): `dotnet publish StageManager -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true -o Artifacts`
+- There are no tests and no linter. The build has ~120 pre-existing nullable warnings; don't add new ones.
+
+## Architecture
+- `MainWindow` (sidebar UI + tray icon) owns everything. `OnContentRendered` creates `WindowsManager` → `SceneManager`, builds the initial `SceneModel`s, and switches to the foreground window's scene. `OnClosed` calls `SceneManager.Stop()` (re-shows all windows, restores desktop icons), then `Environment.Exit(0)`.
+- `Native/WindowsManager` enumerates top-level windows at start (`EnumWindows` + `Win32Helper.IsAppWindow`), then tracks them through `SetWinEventHook` callbacks (show/destroy/cloak/minimize/foreground/move/location). Those callbacks arrive on the thread that called `Start`, which is why `SceneManager.Start` asserts it runs on the main thread. It also runs a `WH_MOUSE_LL` hook on its own message-loop thread. It emits `WindowCreated/Destroyed/Updated` and `UntrackedFocus`; the latter is how a click on the desktop `WorkerW` is detected.
+- `Native/WindowsWindow` is the `IWindow` wrapper over an HWND. `IsCandidate()` holds the class/process ignore lists that decide which windows get managed.
+- `SceneManager`: a `Scene` is a group of windows keyed by `GetWindowGroupKey` (process name). `SwitchTo(scene)` shows that scene's windows and hides all others through the active `IWindowStrategy` (`NormalizeAndMinimizeWindowStrategy`; the other `Strategies/` are unused alternatives). `_suspend` suppresses re-entrant foreground events while switching. `IsReentrancy` blocks bouncing back to a just-hidden scene for 1s (e.g. Teams' floating call window). `SwitchTo(null)` is "desktop view" and shows the desktop icons.
+- UI: `Model/SceneModel` and `WindowModel` are view models, and `DwmThumbnail` renders live DWM thumbnails in the sidebar. `MainWindow` slides off-screen when a current window overlaps the sidebar (500ms `OverlapCheck` timer on a thread-pool thread, so it races with the UI thread) and flies back in when the mouse reaches the left 44px.
+- Input: a second global mouse hook (SharpHook `TaskPoolGlobalHook`) in `MainWindow` handles dragging a window out of a sidebar scene into the current one (`EnableWindowPullToScene`). The hook is stopped while the tray context menu is open.
+- Side effects that must stay reversible:
+  - windows are minimized via `ShowWindow`;
+  - desktop icons are toggled by sending Explorer `WM_COMMAND 0x7402` to `SHELLDLL_DefView`, which persists to the registry;
+  - autostart writes `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+
+## Upstream PRs
+Upstream PRs are mirrored locally as `upstream-pr/<n>`. PR #34 was reviewed and **not merged**: it removes window hiding, per-process grouping and desktop view. Only its isolated fixes were ported (see `docs/ROADMAP.md`).
