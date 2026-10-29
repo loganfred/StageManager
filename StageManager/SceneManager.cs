@@ -1,4 +1,5 @@
 ﻿using AsyncAwaitBestPractices;
+using StageManager.Diagnostics;
 using StageManager.Native;
 using StageManager.Native.PInvoke;
 using StageManager.Native.Window;
@@ -15,8 +16,10 @@ namespace StageManager
 	{
 		private readonly Desktop _desktop;
 		private List<Scene> _scenes;
-		private Scene _current;
+		private Scene? _current;
 		private bool _suspend = false;
+		private volatile bool _paused = false;
+		private int _stopped = 0;
 		private Guid? _reentrancyLockSceneId;
 
 		public event EventHandler<SceneChangedEventArgs> SceneChanged;
@@ -26,10 +29,16 @@ namespace StageManager
 
 		public WindowsManager WindowsManager { get; }
 
+		/// <summary>
+		/// The running instance, for last-resort cleanup from the unhandled-exception handlers in <see cref="App"/>.
+		/// </summary>
+		internal static SceneManager? Active { get; private set; }
+
 		public SceneManager(WindowsManager windowsManager)
 		{
 			WindowsManager = windowsManager ?? throw new ArgumentNullException(nameof(windowsManager));
 			_desktop = new Desktop();
+			Active = this;
 			_desktop.HideIcons();
 		}
 
@@ -46,22 +55,95 @@ namespace StageManager
 			await WindowsManager.Start();
 		}
 
+		/// <summary>
+		/// Stops tracking and puts the desktop back the way it was. Safe to call more than once and from any thread
+		/// (it is also the last-resort cleanup of the unhandled-exception handlers).
+		/// </summary>
 		internal void Stop()
 		{
-			WindowsManager.Stop();
+			if (Interlocked.Exchange(ref _stopped, 1) == 1)
+				return;
 
-			foreach (var scene in _scenes)
+			try
 			{
-				foreach (var w in scene.Windows)
-					WindowStrategy.Show(w);
+				WindowsManager.Stop();
+			}
+			catch (Exception ex)
+			{
+				Log.Error("Stopping the windows manager failed", ex);
 			}
 
-			_desktop.ShowIcons();
+			RestoreDesktop();
+			RecoveryJournal.End();
+		}
+
+		public bool IsPaused => _paused;
+
+		/// <summary>
+		/// Shows all windows and restores the desktop icons, then ignores window events until <see cref="Resume"/>.
+		/// </summary>
+		public void Pause()
+		{
+			if (_paused)
+				return;
+
+			_paused = true;
+			RestoreDesktop();
+			Log.Info("Paused");
+		}
+
+		/// <summary>
+		/// Re-applies the stage that was current when <see cref="Pause"/> was called.
+		/// </summary>
+		public void Resume()
+		{
+			if (!_paused)
+				return;
+
+			_paused = false;
+			Log.Info("Resumed");
+
+			try
+			{
+				_suspend = true;
+				ApplyStage(_current);
+			}
+			finally
+			{
+				_suspend = false;
+			}
+		}
+
+		private void RestoreDesktop()
+		{
+			foreach (var scene in _scenes?.ToArray() ?? Array.Empty<Scene>())
+			{
+				foreach (var w in scene.Windows.ToArray())
+				{
+					try
+					{
+						WindowStrategy.Show(w);
+					}
+					catch (Exception ex)
+					{
+						Log.Error($"Could not restore window {w.Handle}", ex);
+					}
+				}
+			}
+
+			try
+			{
+				_desktop.RestoreIcons();
+			}
+			catch (Exception ex)
+			{
+				Log.Error("Could not restore desktop icons", ex);
+			}
 		}
 
 		private void WindowsManager_WindowUpdated(IWindow window, WindowUpdateType type)
 		{
-			if (_suspend)
+			if (_suspend || _paused)
 				return;
 
 			if (type == WindowUpdateType.Foreground)
@@ -70,7 +152,7 @@ namespace StageManager
 
 		private void WindowsManager_UntrackedFocus(object? sender, IntPtr e)
 		{
-			if (_suspend)
+			if (_suspend || _paused)
 				return;
 
 			if (!_desktop.HasDesktopView)
@@ -174,7 +256,7 @@ namespace StageManager
 
 		public async Task SwitchTo(Scene? scene)
 		{
-			if (object.Equals(scene, _current))
+			if (_paused || object.Equals(scene, _current))
 				return;
 
 			if (IsReentrancy(scene))
@@ -184,34 +266,42 @@ namespace StageManager
 			{
 				_suspend = true;
 
-				var otherWindows = GetSceneableWindows().Except(scene?.Windows ?? Array.Empty<IWindow>()).ToArray();
-
 				var prior = _current;
 				_current = scene;
 
 				foreach (var s in _scenes)
 					s.IsSelected = s.Equals(scene);
 
-				if (scene is object)
-				{
-					foreach (var w in scene.Windows)
-						WindowStrategy.Show(w);
-				}
-
-				foreach (var o in otherWindows)
-					WindowStrategy.Hide(o);
+				ApplyStage(scene);
 
 				CurrentSceneSelectionChanged?.Invoke(this, new CurrentSceneSelectionChangedEventArgs(prior, _current));
-
-				if (scene is null)
-					_desktop.ShowIcons();
-				else
-					_desktop.HideIcons();
 			}
 			finally
 			{
 				_suspend = false;
 			}
+		}
+
+		/// <summary>
+		/// Shows the windows of <paramref name="scene"/>, hides all others, and shows the desktop icons only for the desktop view (null).
+		/// </summary>
+		private void ApplyStage(Scene? scene)
+		{
+			var otherWindows = GetSceneableWindows().Except(scene?.Windows ?? Array.Empty<IWindow>()).ToArray();
+
+			if (scene is object)
+			{
+				foreach (var w in scene.Windows)
+					WindowStrategy.Show(w);
+			}
+
+			foreach (var o in otherWindows)
+				WindowStrategy.Hide(o);
+
+			if (scene is null)
+				_desktop.ShowIcons();
+			else
+				_desktop.HideIcons();
 		}
 
 		public Task MoveWindow(Scene sourceScene, IWindow window, Scene targetScene)

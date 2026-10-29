@@ -125,6 +125,12 @@
                     Opened="ContextMenu_Opened"
                     Closed="ContextMenu_Closed">
                     <MenuItem
+                        x:Name="pauseMenuItem"
+                        Header="Pause (Ctrl+Alt+Shift+P)"
+                        IsCheckable="False"
+                        Click="MenuItem_Pause_Click" />
+                    <Separator />
+                    <MenuItem
                         Header="Start with Windows"
                         IsCheckable="True"
                         IsChecked="{Binding StartsWithWindows}" />
