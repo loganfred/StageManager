@@ -129,6 +129,13 @@ namespace StageManager.Tests
 		public bool IsVisible(IWindow window) => !Hidden.Contains(window);
 	}
 
+	internal sealed class FakeVirtualDesktops : IVirtualDesktops
+	{
+		public HashSet<IWindow> Elsewhere { get; } = new();
+
+		public bool IsOnCurrentDesktop(IWindow window) => !Elsewhere.Contains(window);
+	}
+
 	/// <summary>A <see cref="SceneManager"/> wired to fakes.</summary>
 	internal sealed class Harness
 	{
@@ -136,7 +143,7 @@ namespace StageManager.Tests
 		{
 			Settings = settings ?? new Settings();
 			Groups = groups ?? new GroupMemory();
-			Scenes = new SceneManager(Windows, Desktop, Strategy, Settings, Groups) { ReentrancyWindow = TimeSpan.Zero };
+			Scenes = new SceneManager(Windows, Desktop, Strategy, Settings, Groups, VirtualDesktops) { ReentrancyWindow = TimeSpan.Zero };
 		}
 
 		public Settings Settings { get; }
@@ -144,6 +151,7 @@ namespace StageManager.Tests
 		public FakeWindowsManager Windows { get; } = new();
 		public FakeDesktop Desktop { get; } = new();
 		public FakeWindowStrategy Strategy { get; } = new();
+		public FakeVirtualDesktops VirtualDesktops { get; } = new();
 		public SceneManager Scenes { get; }
 
 		/// <summary>Builds the initial scenes from the existing windows and starts listening for events.</summary>

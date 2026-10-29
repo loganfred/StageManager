@@ -40,6 +40,8 @@ On first run the app writes its defaults to `%APPDATA%\StageManager\settings.jso
 | `OneWindowPerScene` | `false` | Give every window its own scene instead of grouping windows by app |
 | `SeparateWindowApps` | `[]` | Apps whose windows each get their own scene, e.g. `["Teams", "OUTLOOK"]` |
 
+**Virtual desktops:** each desktop has its own stage. The sidebar shows the current desktop's scenes, and switching scenes never touches windows on other desktops.
+
 **App sets:** when you move every window of an app into another scene (by dragging, or Shift+clicking a scene to add it to the current one), Stage Manager remembers it. New windows of that app open in that scene, and the set is rebuilt after a restart. The tray's *Forget app sets* undoes this. Learned sets live in `%LOCALAPPDATA%\StageManager\groups.json`; `AppGroups` in the settings always wins.
 
 Logs are in `%LOCALAPPDATA%\StageManager\stagemanager.log` (the previous one is kept as `stagemanager.1.log` once it passes 1 MB).

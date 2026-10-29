@@ -285,6 +285,40 @@ namespace StageManager.Tests
 		}
 
 		[Fact]
+		public void Windows_reappearing_from_another_desktop_rejoin_their_scene_without_switching()
+		{
+			var h = new Harness();
+			var code = h.Windows.Existing("Code");
+			var edge = h.Windows.Existing("msedge");
+			h.Start();
+			h.SwitchTo(h.SceneOf(code));
+
+			var edge2 = h.Windows.Open("msedge", firstCreate: false);
+			var slack = h.Windows.Open("slack", firstCreate: false);
+
+			Assert.Same(h.SceneOf(edge), h.SceneOf(edge2));
+			Assert.Equal(3, h.Scenes.GetScenes().Count());
+			Assert.True(h.SceneOf(code).IsSelected);
+			Assert.True(h.Strategy.IsVisible(code));
+		}
+
+		[Fact]
+		public void Switching_leaves_windows_on_other_virtual_desktops_alone()
+		{
+			var h = new Harness();
+			var code = h.Windows.Existing("Code");
+			var edge = h.Windows.Existing("msedge");
+			var slack = h.Windows.Existing("slack");
+			h.VirtualDesktops.Elsewhere.Add(slack);
+			h.Start();
+
+			h.SwitchTo(h.SceneOf(code));
+
+			Assert.False(h.Strategy.IsVisible(edge));
+			Assert.True(h.Strategy.IsVisible(slack));
+		}
+
+		[Fact]
 		public void A_just_hidden_scene_cannot_bounce_back_immediately()
 		{
 			var h = new Harness();
