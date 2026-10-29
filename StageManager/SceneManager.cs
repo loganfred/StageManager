@@ -239,18 +239,7 @@ namespace StageManager
 				SwitchTo(scene).SafeFireAndForget();
 		}
 
-		private async Task SwitchToSceneByWindow(IWindow window)
-		{
-			var scene = FindSceneForWindow(window);
-			if (scene is null)
-			{
-				scene = new Scene(GetWindowGroupKey(window), window);
-				_scenes.Add(scene);
-				SceneChanged?.Invoke(this, new SceneChangedEventArgs(scene, window, ChangeType.Created));
-			}
-
-			await SwitchTo(scene);
-		}
+		private Task SwitchToSceneByWindow(IWindow window) => SwitchTo(AddToScene(window));
 
 		private Scene AddToScene(IWindow window)
 		{
