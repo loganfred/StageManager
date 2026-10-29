@@ -17,6 +17,7 @@ namespace StageManager
 		private readonly IDesktop _desktop;
 		private readonly Settings _settings;
 		private readonly GroupMemory _groups;
+		private readonly IVirtualDesktops _virtualDesktops;
 		private List<Scene> _scenes;
 		private Scene? _current;
 		private bool _suspend = false;
@@ -42,13 +43,14 @@ namespace StageManager
 		/// </summary>
 		internal static SceneManager? Active { get; private set; }
 
-		internal SceneManager(IWindowsManager windowsManager, IDesktop desktop, IWindowStrategy windowStrategy, Settings settings, GroupMemory groups)
+		internal SceneManager(IWindowsManager windowsManager, IDesktop desktop, IWindowStrategy windowStrategy, Settings settings, GroupMemory groups, IVirtualDesktops virtualDesktops)
 		{
 			WindowsManager = windowsManager ?? throw new ArgumentNullException(nameof(windowsManager));
 			_desktop = desktop ?? throw new ArgumentNullException(nameof(desktop));
 			WindowStrategy = windowStrategy ?? throw new ArgumentNullException(nameof(windowStrategy));
 			_settings = settings ?? throw new ArgumentNullException(nameof(settings));
 			_groups = groups ?? throw new ArgumentNullException(nameof(groups));
+			_virtualDesktops = virtualDesktops ?? throw new ArgumentNullException(nameof(virtualDesktops));
 			Active = this;
 			_desktop.HideIcons();
 		}
@@ -228,7 +230,13 @@ namespace StageManager
 
 		private void WindowsManager_WindowCreated(IWindow window, bool firstCreate)
 		{
-			SwitchToSceneByNewWindow(window).SafeFireAndForget();
+			var scene = AddToScene(window);
+
+			// A window that reappears (its virtual desktop became current again) only rejoins its scene:
+			// switching for each of them would flip through every scene on that desktop. The foreground
+			// change that ends a desktop switch picks the stage.
+			if (firstCreate)
+				SwitchTo(scene).SafeFireAndForget();
 		}
 
 		private async Task SwitchToSceneByWindow(IWindow window)
@@ -244,8 +252,11 @@ namespace StageManager
 			await SwitchTo(scene);
 		}
 
-		private async Task SwitchToSceneByNewWindow(IWindow window)
+		private Scene AddToScene(IWindow window)
 		{
+			if (FindSceneForWindow(window) is Scene known)
+				return known;
+
 			var existentScene = FindSceneForProcess(GetWindowGroupKey(window));
 			var scene = existentScene ?? new Scene(GetWindowGroupKey(window), window);
 
@@ -260,7 +271,7 @@ namespace StageManager
 				SceneChanged?.Invoke(this, new SceneChangedEventArgs(scene, window, ChangeType.Updated));
 			}
 
-			await SwitchTo(scene).ConfigureAwait(true);
+			return scene;
 		}
 
 		/// <summary>
@@ -320,7 +331,9 @@ namespace StageManager
 		/// </summary>
 		private void ApplyStage(Scene? scene)
 		{
-			var otherWindows = GetSceneableWindows().Except(scene?.Windows ?? Array.Empty<IWindow>()).ToArray();
+			// windows on other virtual desktops are cloaked by the shell already; minimizing or moving them would only
+			// surprise the user when they go back there
+			var otherWindows = GetSceneableWindows().Except(scene?.Windows ?? Array.Empty<IWindow>()).Where(_virtualDesktops.IsOnCurrentDesktop).ToArray();
 
 			// per-monitor stages: leave the other monitors' stages alone (the desktop view still clears every monitor)
 			if (_settings.PerMonitorStages && scene is object)

@@ -193,7 +193,8 @@ namespace StageManager.Native
 			return idChild == Win32.CHILDID_SELF && idObject == Win32.OBJID.OBJID_WINDOW && hwnd != IntPtr.Zero;
 		}
 
-		private void RegisterWindow(IntPtr handle, bool emitEvent = true)
+		/// <param name="firstCreate">False when a known kind of window reappears rather than opens, e.g. uncloaked because its virtual desktop became current.</param>
+		private void RegisterWindow(IntPtr handle, bool emitEvent = true, bool firstCreate = true)
 		{
 			if (!_active)
 				return;
@@ -218,7 +219,7 @@ namespace StageManager.Native
 
 					if (emitEvent)
 					{
-						HandleWindowAdd(window, true);
+						HandleWindowAdd(window, firstCreate);
 					}
 				}
 			}
@@ -248,7 +249,8 @@ namespace StageManager.Native
 			}
 			else if (type == WindowUpdateType.Show)
 			{
-				RegisterWindow(handle);
+				// uncloaked: mostly windows of a virtual desktop that just became current (also UWP apps finishing their launch)
+				RegisterWindow(handle, firstCreate: false);
 			}
 			else if (type == WindowUpdateType.Hide && _windows.ContainsKey(handle))
 			{
