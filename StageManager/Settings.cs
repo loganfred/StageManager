@@ -12,6 +12,14 @@ namespace StageManager
 	/// User settings from %APPDATA%\StageManager\settings.json. Read once at startup; edits apply after a restart.
 	/// A missing file is created with the defaults; an unreadable one is logged and ignored (never overwritten).
 	/// </summary>
+	internal static class HideStrategies
+	{
+		public const string Minimize = "Minimize";
+		public const string OffScreen = "OffScreen";
+
+		public static readonly string[] All = { Minimize, OffScreen };
+	}
+
 	internal sealed class Settings
 	{
 		private static readonly JsonSerializerOptions _jsonOptions = new()
@@ -33,6 +41,12 @@ namespace StageManager
 
 		/// <summary>Global hotkey that pauses/resumes, e.g. "Ctrl+Alt+Shift+P". Empty disables it.</summary>
 		public string PauseHotkey { get; set; } = "Ctrl+Alt+Shift+P";
+
+		/// <summary>
+		/// How windows outside the current scene are hidden: "Minimize" (default) or "OffScreen"
+		/// (moved below the screen: no animation, live thumbnails, maximized/snapped sizes kept).
+		/// </summary>
+		public string HideStrategy { get; set; } = HideStrategies.Minimize;
 
 		/// <summary>Drag a window thumbnail out of the sidebar to add it to the current scene.</summary>
 		public bool EnableWindowPullToScene { get; set; } = true;
@@ -90,6 +104,7 @@ namespace StageManager
 
 			// JSON null leaves these null; keys compare case-insensitively like process names do
 			PauseHotkey ??= "";
+			HideStrategy = HideStrategies.All.FirstOrDefault(s => string.Equals(s, HideStrategy, StringComparison.OrdinalIgnoreCase)) ?? defaults.HideStrategy;
 			IgnoredProcesses ??= new();
 			IgnoredWindowClasses ??= new();
 			AppGroups = new Dictionary<string, string>(

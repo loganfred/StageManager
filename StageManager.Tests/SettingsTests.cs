@@ -36,6 +36,18 @@ namespace StageManager.Tests
 		}
 
 		[Theory]
+		[InlineData("offscreen", "OffScreen")]
+		[InlineData("Minimize", "Minimize")]
+		[InlineData("Cloak", "Minimize")]
+		[InlineData(null, "Minimize")]
+		public void HideStrategy_is_normalized(string? value, string expected)
+		{
+			var json = value is null ? """{ "HideStrategy": null }""" : $$"""{ "HideStrategy": "{{value}}" }""";
+
+			Assert.Equal(expected, Settings.Parse(json).HideStrategy);
+		}
+
+		[Theory]
 		[InlineData("Ctrl+Alt+Shift+P", Win32.MOD_CONTROL | Win32.MOD_ALT | Win32.MOD_SHIFT, Key.P)]
 		[InlineData("win + alt + s", Win32.MOD_WIN | Win32.MOD_ALT, Key.S)]
 		[InlineData("Control+F9", Win32.MOD_CONTROL, Key.F9)]

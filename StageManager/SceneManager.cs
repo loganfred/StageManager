@@ -160,6 +160,15 @@ namespace StageManager
 
 			try
 			{
+				WindowStrategy.RestoreAll();
+			}
+			catch (Exception ex)
+			{
+				Log.Error("Could not restore hidden windows", ex);
+			}
+
+			try
+			{
 				_desktop.RestoreIcons();
 			}
 			catch (Exception ex)
@@ -354,11 +363,12 @@ namespace StageManager
 				}
 				else
 				{
-					WindowStrategy.Hide(window);
-
 					// reset window position after move so that the window is back at the starting position on the new scene
+					// (before hiding: the off-screen strategy remembers the position it hides from)
 					if (window is WindowsWindow w && w.PopLastLocation() is IWindowLocation l)
 						Win32.SetWindowPos(window.Handle, IntPtr.Zero, l.X, l.Y, 0, 0, Win32.SetWindowPosFlags.IgnoreResize);
+
+					WindowStrategy.Hide(window);
 				}
 
 				return Task.CompletedTask;

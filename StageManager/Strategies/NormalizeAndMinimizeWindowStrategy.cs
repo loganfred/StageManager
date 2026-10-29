@@ -14,5 +14,10 @@ namespace StageManager.Strategies
 		{
 			Win32.ShowWindow(window.Handle, Win32.SW.SW_MINIMIZE);
 		}
+
+		// minimized windows that left their scene stay reachable from the taskbar
+		public void RestoreAll()
+		{
+		}
 	}
 }

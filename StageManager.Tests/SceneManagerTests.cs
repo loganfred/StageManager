@@ -162,6 +162,7 @@ namespace StageManager.Tests
 
 			Assert.True(h.Windows.Stopped);
 			Assert.True(h.Strategy.IsVisible(edge));
+			Assert.Empty(h.Strategy.Hidden);
 			Assert.True(h.Desktop.IconsVisible);
 		}
 

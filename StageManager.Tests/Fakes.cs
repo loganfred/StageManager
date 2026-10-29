@@ -119,6 +119,8 @@ namespace StageManager.Tests
 
 		public void Hide(IWindow window) => Hidden.Add(window);
 
+		public void RestoreAll() => Hidden.Clear();
+
 		public bool IsVisible(IWindow window) => !Hidden.Contains(window);
 	}
 

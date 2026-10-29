@@ -161,7 +161,8 @@ namespace StageManager
 			_thisHandle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
 
 			var windowsManager = new WindowsManager();
-			SceneManager = new SceneManager(windowsManager, new Desktop(), new NormalizeAndMinimizeWindowStrategy(), Settings.Current);
+			IWindowStrategy strategy = Settings.Current.HideStrategy == HideStrategies.OffScreen ? new OffScreenWindowStrategy() : new NormalizeAndMinimizeWindowStrategy();
+			SceneManager = new SceneManager(windowsManager, new Desktop(), strategy, Settings.Current);
 			await SceneManager.Start().ConfigureAwait(true);
 
 			SceneManager.SceneChanged += SceneManager_SceneChanged;
