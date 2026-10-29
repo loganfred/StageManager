@@ -114,6 +114,23 @@ namespace StageManager
 			}
 		}
 
+		/// <summary>
+		/// Explorer was restarted: the desktop window was recreated and re-read the icon setting from the registry.
+		/// </summary>
+		public void OnExplorerRestarted()
+		{
+			Log.Info("Explorer restarted");
+			_desktop.ResetDesktopView();
+
+			if (_paused || Volatile.Read(ref _stopped) == 1)
+				return;
+
+			if (_current is null)
+				_desktop.ShowIcons();
+			else
+				_desktop.HideIcons();
+		}
+
 		private void RestoreDesktop()
 		{
 			foreach (var scene in _scenes?.ToArray() ?? Array.Empty<Scene>())

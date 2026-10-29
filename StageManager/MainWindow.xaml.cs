@@ -34,6 +34,7 @@ namespace StageManager
 		private const string APP_NAME = "StageManager";
 		private const int PAUSE_HOTKEY_ID = 0x5347; // arbitrary, unique within this window
 		private const string PAUSE_HOTKEY_TEXT = "Ctrl+Alt+Shift+P";
+		private static readonly int WM_TASKBARCREATED = (int)Win32.RegisterWindowMessage("TaskbarCreated"); // broadcast when Explorer (re)starts
 		private IntPtr _thisHandle;
 		private TaskPoolGlobalHook _hook;
 		private WindowMode _mode;
@@ -103,6 +104,10 @@ namespace StageManager
 			{
 				TogglePause();
 				handled = true;
+			}
+			else if (msg == WM_TASKBARCREATED && WM_TASKBARCREATED != 0)
+			{
+				SceneManager?.OnExplorerRestarted();
 			}
 
 			return IntPtr.Zero;
