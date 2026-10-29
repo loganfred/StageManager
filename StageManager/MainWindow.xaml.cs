@@ -20,6 +20,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 
 namespace StageManager
 {
@@ -33,11 +34,15 @@ namespace StageManager
 		private const string APP_NAME = "StageManager";
 		private const int PAUSE_HOTKEY_ID = 0x5347; // arbitrary, unique within this window
 		private const string PAUSE_HOTKEY_TEXT = "Ctrl+Alt+Shift+P";
+		private static readonly int WM_TASKBARCREATED = (int)Win32.RegisterWindowMessage("TaskbarCreated"); // broadcast when Explorer (re)starts
 		private IntPtr _thisHandle;
 		private TaskPoolGlobalHook _hook;
 		private WindowMode _mode;
+		private const double FLYIN_EDGE_DIP = 44;
 		private double _lastWidth;
-		private Timer _overlapCheckTimer;
+		private double _sidebarWidthPx; // _lastWidth in physical pixels, which is what the mouse hook and GetWindowRect report
+		private double _flyInEdgePx = FLYIN_EDGE_DIP;
+		private readonly DispatcherTimer _overlapCheckTimer;
 		private Point _mouse = new Point(0, 0);
 		private SceneModel _removedCurrentScene;
 		private SceneModel _mouseDownScene;
@@ -51,7 +56,9 @@ namespace StageManager
 
 			DataContext = this;
 
-			_overlapCheckTimer = new Timer(OverlapCheck, null, 2500, TIMERINTERVAL_MILLISECONDS);
+			// on the UI thread, so it never races with the WinEvent callbacks that mutate scenes
+			_overlapCheckTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMilliseconds(TIMERINTERVAL_MILLISECONDS) };
+			_overlapCheckTimer.Tick += (_, _) => OverlapCheck();
 
 			SwitchSceneCommand = new ActionCommand(async model => await SceneManager!.SwitchTo(((SceneModel)model).Scene));
 		}
@@ -62,8 +69,22 @@ namespace StageManager
 
 			_thisHandle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
 			_lastWidth = Width;
+			UpdatePhysicalSizes();
 
 			StartHook();	
+		}
+
+		protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+		{
+			base.OnDpiChanged(oldDpi, newDpi);
+			UpdatePhysicalSizes();
+		}
+
+		private void UpdatePhysicalSizes()
+		{
+			var dpi = VisualTreeHelper.GetDpi(this);
+			_sidebarWidthPx = _lastWidth * dpi.DpiScaleX;
+			_flyInEdgePx = FLYIN_EDGE_DIP * dpi.DpiScaleX;
 		}
 
 		protected override void OnSourceInitialized(EventArgs e)
@@ -83,6 +104,10 @@ namespace StageManager
 			{
 				TogglePause();
 				handled = true;
+			}
+			else if (msg == WM_TASKBARCREATED && WM_TASKBARCREATED != 0)
+			{
+				SceneManager?.OnExplorerRestarted();
 			}
 
 			return IntPtr.Zero;
@@ -109,6 +134,7 @@ namespace StageManager
 
 		protected override void OnClosed(EventArgs e)
 		{
+			_overlapCheckTimer.Stop();
 			Win32.UnregisterHotKey(new WindowInteropHelper(this).Handle, PAUSE_HOTKEY_ID);
 			StopHook();
 
@@ -140,6 +166,9 @@ namespace StageManager
 			var foregroundScene = SceneManager.FindSceneForWindow(foreground);
 			if (foregroundScene is object)
 				await SceneManager.SwitchTo(foregroundScene).ConfigureAwait(true);
+
+			UpdatePhysicalSizes();
+			_overlapCheckTimer.Start();
 		}
 
 		private void AddInitialScenes()
@@ -217,7 +246,7 @@ namespace StageManager
 		{
 			// if it's allowed to drag windows into scenes, we cannot hide the scenes
 			if (EnableWindowDropToScene)
-				_overlapCheckTimer.Change(TimeSpan.Zero, TimeSpan.Zero);
+				Dispatcher.BeginInvoke(_overlapCheckTimer.Stop);
 
 			var foregroundWindow = Win32.GetForegroundWindow();
 			if (foregroundWindow != _thisHandle)
@@ -238,7 +267,7 @@ namespace StageManager
 			// if it's allowed to drag windows into scenes, we cannot hide the scenes
 			if (EnableWindowDropToScene)
 			{
-				_overlapCheckTimer.Change(0, TIMERINTERVAL_MILLISECONDS);
+				Dispatcher.BeginInvoke(_overlapCheckTimer.Start);
 
 				var foregroundWindow = Win32.GetForegroundWindow();
 
@@ -257,7 +286,7 @@ namespace StageManager
 
 			if (EnableWindowPullToScene)
 			{
-				if (e.Data.X > _lastWidth && _mouseDownScene is object)
+				if (e.Data.X > _sidebarWidthPx && _mouseDownScene is object)
 				{
 					this.Dispatcher.Invoke(() =>
 					{
@@ -377,19 +406,18 @@ namespace StageManager
 			_mouse.X = e.Data.X;
 			_mouse.Y = e.Data.Y;
 
-			if (Mode == WindowMode.OffScreen && e.Data.X <= 44)
+			if (Mode == WindowMode.OffScreen && e.Data.X <= _flyInEdgePx)
 			{
 				Dispatcher.Invoke(() => Mode = WindowMode.Flyover);
 			}
 		}
 
-		private void OverlapCheck(object? _)
+		private void OverlapCheck()
 		{
 			var sceneManager = SceneManager;
 			if (sceneManager is null || sceneManager.IsPaused)
 				return;
 
-			// runs on a thread-pool thread: an exception here would otherwise terminate the process
 			try
 			{
 				var currentWindows = sceneManager.GetCurrentWindows().ToArray(); // in case the enumeration changes
@@ -403,22 +431,17 @@ namespace StageManager
 
 		private void UpdateModeByWindows(IEnumerable<IWindow> windows)
 		{
-			bool doesOverlap(IWindowLocation loc) => loc.State == Native.Window.WindowState.Maximized || (loc.State == Native.Window.WindowState.Normal && (loc.X * 2) < _lastWidth);
+			bool doesOverlap(IWindowLocation loc) => loc.State == Native.Window.WindowState.Maximized || (loc.State == Native.Window.WindowState.Normal && (loc.X * 2) < _sidebarWidthPx);
 
 			var anyOverlappingWindows = windows.Any(w => doesOverlap(w.Location));
 
-			var containsMouse = _mouse.X <= _lastWidth;
+			var containsMouse = _mouse.X <= _sidebarWidthPx;
 			var setMode = Mode == WindowMode.OnScreen && !containsMouse
 							|| Mode == WindowMode.OffScreen
 							|| (Mode == WindowMode.Flyover && !containsMouse);
 
 			if (setMode)
-			{
-				Dispatcher.Invoke(() =>
-				{
-					Mode = anyOverlappingWindows ? WindowMode.OffScreen : WindowMode.OnScreen;
-				});
-			}
+				Mode = anyOverlappingWindows ? WindowMode.OffScreen : WindowMode.OnScreen;
 		}
 
 		private void NavigateToProjectPage()

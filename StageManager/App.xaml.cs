@@ -1,4 +1,5 @@
-﻿using StageManager.Diagnostics;
+﻿using AsyncAwaitBestPractices;
+using StageManager.Diagnostics;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +29,7 @@ namespace StageManager
 			DispatcherUnhandledException += OnDispatcherUnhandledException;
 			AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
 			TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+			SafeFireAndForgetExtensions.SetDefaultExceptionHandling(ex => Log.Error("Background task failed", ex)); // otherwise swallowed silently
 
 			Log.Info("Started");
 			base.OnStartup(e);

@@ -108,6 +108,11 @@ namespace StageManager
 			return hShellViewWin;
 		}
 
+		/// <summary>
+		/// Forgets the desktop WorkerW handle (it dies with Explorer); the next untracked focus picks up the new one.
+		/// </summary>
+		public void ResetDesktopView() => _desktopViewHandle = IntPtr.Zero;
+
 		public bool HasDesktopView => _desktopViewHandle != IntPtr.Zero;
 
 		public IntPtr DesktopViewHandle => _desktopViewHandle;

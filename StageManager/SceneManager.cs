@@ -114,6 +114,23 @@ namespace StageManager
 			}
 		}
 
+		/// <summary>
+		/// Explorer was restarted: the desktop window was recreated and re-read the icon setting from the registry.
+		/// </summary>
+		public void OnExplorerRestarted()
+		{
+			Log.Info("Explorer restarted");
+			_desktop.ResetDesktopView();
+
+			if (_paused || Volatile.Read(ref _stopped) == 1)
+				return;
+
+			if (_current is null)
+				_desktop.ShowIcons();
+			else
+				_desktop.HideIcons();
+		}
+
 		private void RestoreDesktop()
 		{
 			foreach (var scene in _scenes?.ToArray() ?? Array.Empty<Scene>())
@@ -188,7 +205,7 @@ namespace StageManager
 
 		private Scene FindSceneForProcess(string processName) => _scenes.FirstOrDefault(s => string.Equals(s.Key, processName, StringComparison.OrdinalIgnoreCase));
 
-		private async void WindowsManager_WindowCreated(IWindow window, bool firstCreate)
+		private void WindowsManager_WindowCreated(IWindow window, bool firstCreate)
 		{
 			SwitchToSceneByNewWindow(window).SafeFireAndForget();
 		}
@@ -209,7 +226,7 @@ namespace StageManager
 		private async Task SwitchToSceneByNewWindow(IWindow window)
 		{
 			var existentScene = FindSceneForProcess(GetWindowGroupKey(window));
-			var scene = existentScene ?? new Scene(window.ProcessName, window);
+			var scene = existentScene ?? new Scene(GetWindowGroupKey(window), window);
 
 			if (existentScene is null)
 			{
