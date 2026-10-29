@@ -18,6 +18,23 @@ Download and run the executable from the [Releases tab](https://github.com/awaes
  - run `dotnet run --project StageManager`
 
 To quit, find the app's tray icon (Windows might move it into the overflow menu) and use its context menu to close the app.
+
+### Settings
+
+On first run the app writes its defaults to `%APPDATA%\StageManager\settings.json` (tray menu → *Settings* opens it). Changes apply after a restart; if the file can't be read, the app logs why and uses the defaults.
+
+| Setting | Default | Meaning |
+|-|-|-|
+| `MaxScenes` | `6` | Scenes shown in the sidebar |
+| `FlyInEdgeWidth` | `44` | Width (at 100% scaling) of the left screen strip that brings the hidden sidebar back |
+| `PauseHotkey` | `"Ctrl+Alt+Shift+P"` | Pause/resume hotkey: modifiers (`Ctrl`, `Alt`, `Shift`, `Win`) plus a WPF key name (`P`, `F9`, `D1`). `""` disables it |
+| `EnableWindowPullToScene` | `true` | Drag a thumbnail out of the sidebar to add that window to the current scene |
+| `EnableWindowDropToScene` | `false` | Drag a window onto a sidebar scene to move it there (experimental) |
+| `IgnoredProcesses` | `[]` | Process names (no `.exe`) to never manage, e.g. `["KeePassXC"]` |
+| `IgnoredWindowClasses` | `[]` | Window classes to never manage |
+| `AppGroups` | `{}` | Put several apps in one scene, e.g. `{"msedge": "Browsers", "chrome": "Browsers"}` |
+
+Logs are in `%LOCALAPPDATA%\StageManager\stagemanager.log` (the previous one is kept as `stagemanager.1.log` once it passes 1 MB).
  
 ### Requirements
  - Windows 10 version 2004 or newer

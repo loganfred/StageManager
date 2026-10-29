@@ -30,25 +30,22 @@ namespace StageManager
 	public partial class MainWindow : Window
 	{
 		private const int TIMERINTERVAL_MILLISECONDS = 500;
-		private const int MAX_SCENES = 6;
 		private const string APP_NAME = "StageManager";
 		private const int PAUSE_HOTKEY_ID = 0x5347; // arbitrary, unique within this window
-		private const string PAUSE_HOTKEY_TEXT = "Ctrl+Alt+Shift+P";
 		private static readonly int WM_TASKBARCREATED = (int)Win32.RegisterWindowMessage("TaskbarCreated"); // broadcast when Explorer (re)starts
 		private IntPtr _thisHandle;
 		private TaskPoolGlobalHook _hook;
 		private WindowMode _mode;
-		private const double FLYIN_EDGE_DIP = 44;
 		private double _lastWidth;
 		private double _sidebarWidthPx; // _lastWidth in physical pixels, which is what the mouse hook and GetWindowRect report
-		private double _flyInEdgePx = FLYIN_EDGE_DIP;
+		private double _flyInEdgePx = Settings.Current.FlyInEdgeWidth;
 		private readonly DispatcherTimer _overlapCheckTimer;
 		private Point _mouse = new Point(0, 0);
 		private SceneModel _removedCurrentScene;
 		private SceneModel _mouseDownScene;
 
-		public bool EnableWindowDropToScene = false;
-		public bool EnableWindowPullToScene = true;
+		private readonly bool EnableWindowDropToScene = Settings.Current.EnableWindowDropToScene;
+		private readonly bool EnableWindowPullToScene = Settings.Current.EnableWindowPullToScene;
 
 		public MainWindow()
 		{
@@ -84,7 +81,7 @@ namespace StageManager
 		{
 			var dpi = VisualTreeHelper.GetDpi(this);
 			_sidebarWidthPx = _lastWidth * dpi.DpiScaleX;
-			_flyInEdgePx = FLYIN_EDGE_DIP * dpi.DpiScaleX;
+			_flyInEdgePx = Settings.Current.FlyInEdgeWidth * dpi.DpiScaleX;
 		}
 
 		protected override void OnSourceInitialized(EventArgs e)
@@ -94,8 +91,17 @@ namespace StageManager
 			var handle = new WindowInteropHelper(this).Handle;
 			HwndSource.FromHwnd(handle)?.AddHook(WndProc);
 
-			if (!Win32.RegisterHotKey(handle, PAUSE_HOTKEY_ID, Win32.MOD_CONTROL | Win32.MOD_ALT | Win32.MOD_SHIFT | Win32.MOD_NOREPEAT, (uint)KeyInterop.VirtualKeyFromKey(Key.P)))
-				Log.Error($"Could not register the {PAUSE_HOTKEY_TEXT} hotkey (Win32 error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}); pause is still available from the tray menu");
+			// an empty PauseHotkey disables it; the tray menu always works
+			var hotkey = Settings.Current.PauseHotkey;
+			if (string.IsNullOrWhiteSpace(hotkey))
+				return;
+
+			if (!Settings.Current.TryGetPauseHotkey(out var modifiers, out var key))
+				Log.Error($"Ignoring PauseHotkey \"{hotkey}\": expected modifiers and a key, e.g. \"Ctrl+Alt+Shift+P\"");
+			else if (!Win32.RegisterHotKey(handle, PAUSE_HOTKEY_ID, modifiers | Win32.MOD_NOREPEAT, (uint)KeyInterop.VirtualKeyFromKey(key)))
+				Log.Error($"Could not register the {hotkey} hotkey (Win32 error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}); pause is still available from the tray menu");
+			else
+				pauseMenuItem.Header = $"Pause ({hotkey})";
 		}
 
 		private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -177,7 +183,7 @@ namespace StageManager
 			for (int i = 0; i < initialScenes.Length; i++)
 			{
 				var model = SceneModel.FromScene(initialScenes[i]);
-				model.IsVisible = i <= MAX_SCENES; // i is zero based, so it should be i+1 but one scene gets selected (and removed from the sidebar) that makes i+0 again
+				model.IsVisible = i <= Settings.Current.MaxScenes; // i is zero based, so it should be i+1 but one scene gets selected (and removed from the sidebar) that makes i+0 again
 				Scenes.Add(model);
 			}
 		}
@@ -327,7 +333,7 @@ namespace StageManager
 		{
 			var scenes = Scenes.OrderByDescending(s => s.Updated).ToArray();
 			for (int i = 0; i < scenes.Length; i++)
-				scenes[i].IsVisible = i < MAX_SCENES;
+				scenes[i].IsVisible = i < Settings.Current.MaxScenes;
 		}
 
 		public ObservableCollection<SceneModel> Scenes { get; } = new ObservableCollection<SceneModel>();
@@ -461,6 +467,19 @@ namespace StageManager
 		private void MenuItem_ProjectPage_Click(object sender, RoutedEventArgs e)
 		{
 			NavigateToProjectPage();
+		}
+
+		private void MenuItem_Settings_Click(object sender, RoutedEventArgs e)
+		{
+			// the file is created on startup; open it in the user's .json editor (falls back to the "Open with" dialog)
+			try
+			{
+				Process.Start(new ProcessStartInfo(Settings.FilePath) { UseShellExecute = true });
+			}
+			catch (Exception ex)
+			{
+				Log.Error($"Could not open {Settings.FilePath}", ex);
+			}
 		}
 
 		private void MenuItem_Pause_Click(object sender, RoutedEventArgs e)

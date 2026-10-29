@@ -36,7 +36,7 @@ Goal: take this prototype to something reliable for daily use. Each item lands o
 - [x] Sidebar hit tests use physical pixels (`_sidebarWidthPx`)
 
 ## Phase 3: Fit daily workflow
-- [ ] `feat/settings`: JSON settings in `%APPDATA%\StageManager` (max scenes, edge width, ignore lists, strategy, grouping), plus rolling log in `%LOCALAPPDATA%`
+- [x] `feat/settings`: JSON settings in `%APPDATA%\StageManager` (max scenes, edge width, hotkey, drag options, ignore lists, app groups), plus rolling log in `%LOCALAPPDATA%`. The hide-strategy setting comes with `feat/hide-strategy-cloak`, since minimizing is the only strategy today
 - [ ] `feat/hide-strategy-cloak`: hide without minimizing (keeps the taskbar and Win+Tab clean)
 - [ ] `feat/multi-app-sets`: user-built sets that persist; per-app "all windows / one at a time"
 - [ ] `feat/add-to-stage-gesture`: Shift+click or drag to add a window to the current stage

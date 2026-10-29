@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -185,7 +186,7 @@ namespace StageManager.Native
 				"WorkerW"
 			};
 
-			if (ignoreClasses.Contains(Class))
+			if (ignoreClasses.Contains(Class) || Settings.Current.IgnoredWindowClasses.Contains(Class, StringComparer.OrdinalIgnoreCase))
 				return false;
 
 			var ignoreProcesses = new List<string>()
@@ -201,7 +202,7 @@ namespace StageManager.Native
 				"ScreenClippingHost"
 			};
 
-			if (ignoreProcesses.Contains(ProcessName))
+			if (ignoreProcesses.Contains(ProcessName) || Settings.Current.IgnoredProcesses.Contains(ProcessName, StringComparer.OrdinalIgnoreCase))
 				return false;
 
 			return true;
