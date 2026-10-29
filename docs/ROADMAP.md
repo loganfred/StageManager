@@ -15,9 +15,10 @@ Goal: take this prototype to something reliable for daily use. Each item lands o
 - [ ] Delete `origin/feature/live-thumbnails` on GitHub (already in `main`)
 
 ## Phase 0: CI and dependency hygiene (`chore/ci-deps`)
-- [ ] Release only on manual dispatch or tag push; add `-r win-x64` to publish
-- [ ] Bump packages (SharpHook, ControlzEx, Hardcodet.NotifyIcon.Wpf, WpfScreenHelper); run `dotnet list package --vulnerable --include-transitive`
-- [ ] Remove dead P/Invokes (`CreateFile`, console APIs) and unused strategies
+- [x] Release only on manual dispatch (Actions → Run workflow); publish for `win-x64`
+- [x] No vulnerable packages (`dotnet list package --vulnerable --include-transitive`)
+- [x] Dropped ControlzEx; bumped SharpHook 8 (now mouse-only, no keyboard hook), Hardcodet.NotifyIcon.Wpf 2, AsyncAwaitBestPractices 10, WpfScreenHelper 2.1.1
+- [x] Removed dead P/Invokes (`CreateFile`, console and system-menu APIs); kept the alternative hide strategies for the cloak work
 
 ## Phase 1: Never leave the desktop broken (`fix/crash-safe-restore`)
 - [ ] Global exception handlers (`DispatcherUnhandledException`, `AppDomain.UnhandledException`, `TaskScheduler.UnobservedTaskException`) that log and restore windows and icons
@@ -28,7 +29,7 @@ Goal: take this prototype to something reliable for daily use. Each item lands o
 
 ## Phase 2: Correctness and threading (`fix/threading`)
 - [ ] Move `OverlapCheck` to the dispatcher, or snapshot scenes under a lock
-- [ ] Use one global mouse hook; avoid SharpHook's keyboard hook
+- [ ] Use one global mouse hook (SharpHook's keyboard hook is already gone)
 - [ ] Recover from Explorer restarts (`TaskbarCreated`, re-resolve `WorkerW`)
 - [ ] Deliberately skip elevated windows (UIPI)
 - [ ] Small bugs: `AddInitialScenes` off-by-one, `SwitchToSceneByNewWindow` group key, `async void` handlers

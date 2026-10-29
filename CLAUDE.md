@@ -8,7 +8,7 @@ WPF tray app (.NET 8, `net8.0-windows`, WPF + WinForms enabled) that mimics macO
 ## Commands
 - Build: `dotnet build StageManager.sln`
 - Run: `dotnet run --project StageManager`. Quit via the tray icon's context menu → Quit. Killing the process skips cleanup and leaves other windows minimized and desktop icons hidden.
-- Release single-file exe (what CI does): `dotnet publish StageManager -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true -o Artifacts`
+- Release single-file exe (what CI does; CI only publishes a GitHub release on a manual `workflow_dispatch` run): `dotnet publish StageManager -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true -o Artifacts`
 - There are no tests and no linter. The build has ~120 pre-existing nullable warnings; don't add new ones.
 
 ## Architecture
@@ -17,7 +17,7 @@ WPF tray app (.NET 8, `net8.0-windows`, WPF + WinForms enabled) that mimics macO
 - `Native/WindowsWindow` is the `IWindow` wrapper over an HWND. `IsCandidate()` holds the class/process ignore lists that decide which windows get managed.
 - `SceneManager`: a `Scene` is a group of windows keyed by `GetWindowGroupKey` (process name). `SwitchTo(scene)` shows that scene's windows and hides all others through the active `IWindowStrategy` (`NormalizeAndMinimizeWindowStrategy`; the other `Strategies/` are unused alternatives). `_suspend` suppresses re-entrant foreground events while switching. `IsReentrancy` blocks bouncing back to a just-hidden scene for 1s (e.g. Teams' floating call window). `SwitchTo(null)` is "desktop view" and shows the desktop icons.
 - UI: `Model/SceneModel` and `WindowModel` are view models, and `DwmThumbnail` renders live DWM thumbnails in the sidebar. `MainWindow` slides off-screen when a current window overlaps the sidebar (500ms `OverlapCheck` timer on a thread-pool thread, so it races with the UI thread) and flies back in when the mouse reaches the left 44px.
-- Input: a second global mouse hook (SharpHook `TaskPoolGlobalHook`) in `MainWindow` handles dragging a window out of a sidebar scene into the current one (`EnableWindowPullToScene`). The hook is stopped while the tray context menu is open.
+- Input: a second global mouse hook (SharpHook `TaskPoolGlobalHook`, run with `GlobalHookType.Mouse` so no keyboard hook is installed) in `MainWindow` handles dragging a window out of a sidebar scene into the current one (`EnableWindowPullToScene`). The hook is stopped while the tray context menu is open.
 - Side effects that must stay reversible:
   - windows are minimized via `ShowWindow`;
   - desktop icons are toggled by sending Explorer `WM_COMMAND 0x7402` to `SHELLDLL_DefView`, which persists to the registry;

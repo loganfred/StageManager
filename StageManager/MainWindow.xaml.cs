@@ -1,6 +1,7 @@
 ﻿using AsyncAwaitBestPractices;
 using Microsoft.Xaml.Behaviors.Core;
 using SharpHook;
+using SharpHook.Data;
 using StageManager.Model;
 using StageManager.Native;
 using StageManager.Native.PInvoke;
@@ -306,7 +307,8 @@ namespace StageManager
 			_hook.MouseReleased += OnMouseReleased;
 			_hook.MouseMoved += _hook_MouseMoved;
 
-			Task.Run(_hook.Run);
+			// mouse only: we never need keystrokes, so don't install a global keyboard hook
+			_hook.RunAsync(GlobalHookType.Mouse, useBackgroundThread: true).SafeFireAndForget();
 		}
 
 		private void StopHook()
