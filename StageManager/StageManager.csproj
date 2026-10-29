@@ -18,7 +18,7 @@
 		<PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
 		<PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
 		<PackageReference Include="SharpHook" Version="4.2.1" />
-		<PackageReference Include="WpfScreenHelper" Version="2.1.0" />
+		<PackageReference Include="WpfScreenHelper" Version="2.1.1" />
 	</ItemGroup>
 
 </Project>
