@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -18,12 +19,14 @@ namespace StageManager.Native
 	public class WindowsManager : IWindowsManager
 	{
 		private bool _active;
-		private IDictionary<IntPtr, WindowsWindow> _windows;
+		private ConcurrentDictionary<IntPtr, WindowsWindow> _windows;
 		private WinEventDelegate _hookDelegate;
 
 		private WindowsWindow _mouseMoveWindow;
 		private readonly object _mouseMoveLock = new object();
 		private Win32.HookProc _mouseHook;
+		private IntPtr _mouseHookHandle;
+		private readonly List<IntPtr> _winEventHooks = new List<IntPtr>();
 
 		private Dictionary<WindowsWindow, bool> _floating;
 		private IntPtr _currentProcessWindowHandle;
@@ -67,7 +70,7 @@ namespace StageManager.Native
 
 		public WindowsManager()
 		{
-			_windows = new Dictionary<IntPtr, WindowsWindow>();
+			_windows = new ConcurrentDictionary<IntPtr, WindowsWindow>();
 			_floating = new Dictionary<WindowsWindow, bool>();
 			_hookDelegate = new WinEventDelegate(WindowHook);
 		}
@@ -80,12 +83,12 @@ namespace StageManager.Native
 			_currentProcessId = currentProcess.Id;
 			_currentProcessWindowHandle = currentProcess.MainWindowHandle;
 
-			Win32.SetWinEventHook(Win32.EVENT_CONSTANTS.EVENT_OBJECT_DESTROY, Win32.EVENT_CONSTANTS.EVENT_OBJECT_SHOW, IntPtr.Zero, _hookDelegate, 0, 0, 0);
-			Win32.SetWinEventHook(Win32.EVENT_CONSTANTS.EVENT_OBJECT_CLOAKED, Win32.EVENT_CONSTANTS.EVENT_OBJECT_UNCLOAKED, IntPtr.Zero, _hookDelegate, 0, 0, 0);
-			Win32.SetWinEventHook(Win32.EVENT_CONSTANTS.EVENT_SYSTEM_MINIMIZESTART, Win32.EVENT_CONSTANTS.EVENT_SYSTEM_MINIMIZEEND, IntPtr.Zero, _hookDelegate, 0, 0, 0);
-			Win32.SetWinEventHook(Win32.EVENT_CONSTANTS.EVENT_SYSTEM_MOVESIZESTART, Win32.EVENT_CONSTANTS.EVENT_SYSTEM_MOVESIZEEND, IntPtr.Zero, _hookDelegate, 0, 0, 0);
-			Win32.SetWinEventHook(Win32.EVENT_CONSTANTS.EVENT_SYSTEM_FOREGROUND, Win32.EVENT_CONSTANTS.EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _hookDelegate, 0, 0, 0);
-			Win32.SetWinEventHook(Win32.EVENT_CONSTANTS.EVENT_OBJECT_LOCATIONCHANGE, Win32.EVENT_CONSTANTS.EVENT_OBJECT_LOCATIONCHANGE, IntPtr.Zero, _hookDelegate, 0, 0, 0);
+			RegisterWinEventHook(Win32.EVENT_CONSTANTS.EVENT_OBJECT_DESTROY, Win32.EVENT_CONSTANTS.EVENT_OBJECT_SHOW);
+			RegisterWinEventHook(Win32.EVENT_CONSTANTS.EVENT_OBJECT_CLOAKED, Win32.EVENT_CONSTANTS.EVENT_OBJECT_UNCLOAKED);
+			RegisterWinEventHook(Win32.EVENT_CONSTANTS.EVENT_SYSTEM_MINIMIZESTART, Win32.EVENT_CONSTANTS.EVENT_SYSTEM_MINIMIZEEND);
+			RegisterWinEventHook(Win32.EVENT_CONSTANTS.EVENT_SYSTEM_MOVESIZESTART, Win32.EVENT_CONSTANTS.EVENT_SYSTEM_MOVESIZEEND);
+			RegisterWinEventHook(Win32.EVENT_CONSTANTS.EVENT_SYSTEM_FOREGROUND, Win32.EVENT_CONSTANTS.EVENT_SYSTEM_FOREGROUND);
+			RegisterWinEventHook(Win32.EVENT_CONSTANTS.EVENT_OBJECT_LOCATIONCHANGE, Win32.EVENT_CONSTANTS.EVENT_OBJECT_LOCATIONCHANGE);
 
 			_mouseHook = MouseHook;
 
@@ -100,11 +103,12 @@ namespace StageManager.Native
 
 			var thread = new Thread(() =>
 			{
-				Win32.SetWindowsHookEx(Win32.WH_MOUSE_LL, _mouseHook, currentProcess.MainModule.BaseAddress, 0);
+				_mouseHookHandle = Win32.SetWindowsHookEx(Win32.WH_MOUSE_LL, _mouseHook, currentProcess.MainModule.BaseAddress, 0);
 				Application.Run();
 			});
 
 			thread.Name = "WindowsManager";
+			thread.IsBackground = true;
 			thread.Start();
 
 			return Task.CompletedTask;
@@ -113,6 +117,23 @@ namespace StageManager.Native
 		public void Stop()
 		{
 			_active = false;
+
+			foreach (var hook in _winEventHooks)
+				Win32.UnhookWinEvent(hook);
+			_winEventHooks.Clear();
+
+			if (_mouseHookHandle != IntPtr.Zero)
+			{
+				Win32.UnhookWindowsHookEx(_mouseHookHandle);
+				_mouseHookHandle = IntPtr.Zero;
+			}
+		}
+
+		private void RegisterWinEventHook(Win32.EVENT_CONSTANTS min, Win32.EVENT_CONSTANTS max)
+		{
+			var hook = Win32.SetWinEventHook(min, max, IntPtr.Zero, _hookDelegate, 0, 0, 0);
+			if (hook != IntPtr.Zero)
+				_winEventHooks.Add(hook);
 		}
 
 		public IWindowsDeferPosHandle DeferWindowsPos(int count)
@@ -239,9 +260,8 @@ namespace StageManager.Native
 
 			if (_windows.ContainsKey(handle))
 			{
-				var window = _windows[handle];
-				_windows.Remove(handle);
-				HandleWindowRemove(window);
+				if (_windows.TryRemove(handle, out var window))
+					HandleWindowRemove(window);
 			}
 		}
 
