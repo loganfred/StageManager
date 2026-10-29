@@ -10,8 +10,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using ControlzEx.Standard;
 using System;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -20,6 +20,30 @@ namespace StageManager.Native
 {
 	public static class VisualHelper
 	{
+		private const uint MONITOR_DEFAULTTONEAREST = 2;
+
+		[DllImport("user32.dll")]
+		private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+		[DllImport("user32.dll", CharSet = CharSet.Unicode)]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+		[StructLayout(LayoutKind.Sequential)]
+		private struct MONITORINFO
+		{
+			public int cbSize;
+			public RECT rcMonitor;
+			public RECT rcWork;
+			public uint dwFlags;
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
+		private struct RECT
+		{
+			public int Left, Top, Right, Bottom;
+		}
+
 		/// <summary>
 		/// Get the working area size of the monitor from where the visual stays.
 		/// </summary>
@@ -32,12 +56,10 @@ namespace StageManager.Native
 				var hwndSource = PresentationSource.FromVisual(visual) as HwndSource;
 				if (hwndSource != null && !hwndSource.IsDisposed && hwndSource.RootVisual != null && hwndSource.Handle != IntPtr.Zero)
 				{
-					IntPtr intPtr = NativeMethods.MonitorFromWindow(hwndSource.Handle, MonitorOptions.MONITOR_DEFAULTTONEAREST);
-					if (intPtr != IntPtr.Zero)
-					{
-						var monitorInfoW = NativeMethods.GetMonitorInfoW(intPtr);
-						return new Size(monitorInfoW.rcWork.Width, monitorInfoW.rcWork.Height);
-					}
+					IntPtr monitor = MonitorFromWindow(hwndSource.Handle, MONITOR_DEFAULTTONEAREST);
+					var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+					if (monitor != IntPtr.Zero && GetMonitorInfo(monitor, ref info))
+						return new Size(info.rcWork.Right - info.rcWork.Left, info.rcWork.Bottom - info.rcWork.Top);
 				}
 			}
 
