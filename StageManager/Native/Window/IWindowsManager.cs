@@ -1,13 +1,24 @@
-﻿namespace StageManager.Native.Window
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace StageManager.Native.Window
 {
     public delegate void WindowFocusDelegate(IWindow window);
 
+    /// <summary>
+    /// The window tracking that <see cref="SceneManager"/> depends on; faked in the tests.
+    /// </summary>
     public interface IWindowsManager
     {
-        IWindowsDeferPosHandle DeferWindowsPos(int count);
-        
-        event WindowFocusDelegate WindowFocused;
+        event WindowCreateDelegate WindowCreated;
+        event WindowDelegate WindowDestroyed;
+        event WindowUpdateDelegate WindowUpdated;
+        event EventHandler<IntPtr> UntrackedFocus;
 
-        void ToggleFocusedWindowTiling();
+        IEnumerable<IWindow> Windows { get; }
+
+        Task Start();
+        void Stop();
     }
 }

@@ -8,6 +8,7 @@ using StageManager.Native;
 using StageManager.Native.PInvoke;
 using StageManager.Native.Interop;
 using StageManager.Native.Window;
+using StageManager.Strategies;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -160,7 +161,7 @@ namespace StageManager
 			_thisHandle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
 
 			var windowsManager = new WindowsManager();
-			SceneManager = new SceneManager(windowsManager);
+			SceneManager = new SceneManager(windowsManager, new Desktop(), new NormalizeAndMinimizeWindowStrategy(), Settings.Current);
 			await SceneManager.Start().ConfigureAwait(true);
 
 			SceneManager.SceneChanged += SceneManager_SceneChanged;

@@ -14,38 +14,48 @@ namespace StageManager
 {
 	public class SceneManager
 	{
-		private readonly Desktop _desktop;
+		private readonly IDesktop _desktop;
+		private readonly Settings _settings;
 		private List<Scene> _scenes;
 		private Scene? _current;
 		private bool _suspend = false;
 		private volatile bool _paused = false;
 		private int _stopped = 0;
 		private Guid? _reentrancyLockSceneId;
+		private DateTime _reentrancyLockUntil;
 
 		public event EventHandler<SceneChangedEventArgs> SceneChanged;
 		public event EventHandler<CurrentSceneSelectionChangedEventArgs> CurrentSceneSelectionChanged;
 
-		private IWindowStrategy WindowStrategy { get; } = new NormalizeAndMinimizeWindowStrategy(); // new WindowNormalizeStrategy/OpacityWindowStrategy/ShowAndHideWindowStrategy
+		private IWindowStrategy WindowStrategy { get; }
 
-		public WindowsManager WindowsManager { get; }
+		public IWindowsManager WindowsManager { get; }
+
+		/// <summary>
+		/// How long a scene that was just hidden ignores attempts to bring it back (see <see cref="IsReentrancy"/>).
+		/// </summary>
+		internal TimeSpan ReentrancyWindow { get; set; } = TimeSpan.FromSeconds(1);
 
 		/// <summary>
 		/// The running instance, for last-resort cleanup from the unhandled-exception handlers in <see cref="App"/>.
 		/// </summary>
 		internal static SceneManager? Active { get; private set; }
 
-		public SceneManager(WindowsManager windowsManager)
+		internal SceneManager(IWindowsManager windowsManager, IDesktop desktop, IWindowStrategy windowStrategy, Settings settings)
 		{
 			WindowsManager = windowsManager ?? throw new ArgumentNullException(nameof(windowsManager));
-			_desktop = new Desktop();
+			_desktop = desktop ?? throw new ArgumentNullException(nameof(desktop));
+			WindowStrategy = windowStrategy ?? throw new ArgumentNullException(nameof(windowStrategy));
+			_settings = settings ?? throw new ArgumentNullException(nameof(settings));
 			Active = this;
 			_desktop.HideIcons();
 		}
 
 		public async Task Start()
 		{
-			if (Thread.CurrentThread.ManagedThreadId != 1)
-				throw new NotSupportedException("Start has to be called on the main thread, otherwise events won't be fired.");
+			// WinEvent hooks deliver their callbacks to the thread that installed them
+			if (System.Windows.Application.Current?.Dispatcher.CheckAccess() == false)
+				throw new NotSupportedException("Start has to be called on the UI thread, otherwise events won't be fired.");
 
 			WindowsManager.WindowCreated += WindowsManager_WindowCreated;
 			WindowsManager.WindowUpdated += WindowsManager_WindowUpdated;
@@ -254,18 +264,13 @@ namespace StageManager
 			if (scene is null)
 				return false;
 
-			if (Guid.Equals(scene.Id, _reentrancyLockSceneId))
+			if (scene.Id == _reentrancyLockSceneId && DateTime.UtcNow < _reentrancyLockUntil)
 				return true;
 
 			if (_current is object)
 			{
 				_reentrancyLockSceneId = _current.Id;
-
-				Task.Run(async () =>
-				{
-					await Task.Delay(1000).ConfigureAwait(false);
-					_reentrancyLockSceneId = null;
-				}).SafeFireAndForget();
+				_reentrancyLockUntil = DateTime.UtcNow + ReentrancyWindow;
 			}
 
 			return false;
@@ -403,6 +408,6 @@ namespace StageManager
 
 		public IEnumerable<IWindow> GetCurrentWindows() => _current?.Windows ?? GetSceneableWindows();
 
-		private string GetWindowGroupKey(IWindow window) => Settings.Current.GetGroupKey(window.ProcessName);
+		private string GetWindowGroupKey(IWindow window) => _settings.GetGroupKey(window.ProcessName);
 	}
 }
