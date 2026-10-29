@@ -403,6 +403,6 @@ namespace StageManager
 
 		public IEnumerable<IWindow> GetCurrentWindows() => _current?.Windows ?? GetSceneableWindows();
 
-		private string GetWindowGroupKey(IWindow window) => window.ProcessName;
+		private string GetWindowGroupKey(IWindow window) => Settings.Current.GetGroupKey(window.ProcessName);
 	}
 }

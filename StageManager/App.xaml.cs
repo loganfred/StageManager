@@ -32,6 +32,7 @@ namespace StageManager
 			SafeFireAndForgetExtensions.SetDefaultExceptionHandling(ex => Log.Error("Background task failed", ex)); // otherwise swallowed silently
 
 			Log.Info("Started");
+			Settings.Load();
 			base.OnStartup(e);
 
 			// created here rather than via StartupUri so a second instance never builds a window that grabs the desktop
