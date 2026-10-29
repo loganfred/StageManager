@@ -10,6 +10,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<InternalsVisibleTo Include="StageManager.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<Resource Include="StageManager.ico" />
 	</ItemGroup>
 

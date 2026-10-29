@@ -7,7 +7,7 @@ using System.Text;
 
 namespace StageManager
 {
-	internal class Desktop
+	internal class Desktop : IDesktop
 	{
 		[DllImport("user32.dll", SetLastError = true)]
 		static extern IntPtr FindWindow(string lpClassName, string lpWindowName);

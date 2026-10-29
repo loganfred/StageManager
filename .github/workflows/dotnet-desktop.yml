@@ -86,6 +86,9 @@ jobs:
     - name: Restore the solution
       run: dotnet restore $env:Solution_Name
 
+    - name: Test
+      run: dotnet test $env:Solution_Name --configuration ${{ matrix.configuration }} --no-restore
+
     # Create the app package by building and packaging the Windows Application Packaging project
     - name: Build and publish
       run: dotnet publish StageManager --configuration ${{ matrix.configuration }} --output ${{ env.OutputDir }} --runtime win-x64 --self-contained -p:PublishReadyToRun=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true

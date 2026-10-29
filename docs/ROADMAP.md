@@ -44,6 +44,6 @@ Goal: take this prototype to something reliable for daily use. Each item lands o
 - [ ] `feat/virtual-desktops`
 
 ## Phase 4: Maintainability (`test/scene-logic`)
-- [ ] Test project with fake `IWindow`/`IWindowsManager` covering grouping and switching
-- [ ] `dotnet test` in CI
+- [x] Test project with fake `IWindow`/`IWindowsManager` covering grouping and switching
+- [x] `dotnet test` in CI
 - [ ] Optional: code-sign the release exe
