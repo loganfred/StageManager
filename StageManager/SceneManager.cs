@@ -16,6 +16,7 @@ namespace StageManager
 	{
 		private readonly IDesktop _desktop;
 		private readonly Settings _settings;
+		private readonly GroupMemory _groups;
 		private List<Scene> _scenes;
 		private Scene? _current;
 		private bool _suspend = false;
@@ -41,12 +42,13 @@ namespace StageManager
 		/// </summary>
 		internal static SceneManager? Active { get; private set; }
 
-		internal SceneManager(IWindowsManager windowsManager, IDesktop desktop, IWindowStrategy windowStrategy, Settings settings)
+		internal SceneManager(IWindowsManager windowsManager, IDesktop desktop, IWindowStrategy windowStrategy, Settings settings, GroupMemory groups)
 		{
 			WindowsManager = windowsManager ?? throw new ArgumentNullException(nameof(windowsManager));
 			_desktop = desktop ?? throw new ArgumentNullException(nameof(desktop));
 			WindowStrategy = windowStrategy ?? throw new ArgumentNullException(nameof(windowStrategy));
 			_settings = settings ?? throw new ArgumentNullException(nameof(settings));
+			_groups = groups ?? throw new ArgumentNullException(nameof(groups));
 			Active = this;
 			_desktop.HideIcons();
 		}
@@ -356,6 +358,8 @@ namespace StageManager
 					SceneChanged?.Invoke(this, new SceneChangedEventArgs(sourceScene, window, ChangeType.Removed));
 				}
 
+				LearnGroups(sourceScene, targetScene);
+
 				if (targetScene.Equals(_current))
 				{
 					WindowStrategy.Show(window);
@@ -418,6 +422,53 @@ namespace StageManager
 
 		public IEnumerable<IWindow> GetCurrentWindows() => _current?.Windows ?? GetSceneableWindows();
 
-		private string GetWindowGroupKey(IWindow window) => _settings.GetGroupKey(window.ProcessName);
+		private const char WindowKeySeparator = '#';
+
+		/// <summary>
+		/// Settings' AppGroups win, then apps whose windows are kept apart, then app sets the user built, then the process name.
+		/// </summary>
+		private string GetWindowGroupKey(IWindow window)
+		{
+			var processName = window.ProcessName;
+
+			if (_settings.AppGroups.ContainsKey(processName))
+				return _settings.GetGroupKey(processName);
+
+			if (_settings.IsSeparateWindowApp(processName))
+				return processName + WindowKeySeparator + window.Handle.ToInt64();
+
+			return _groups.Get(processName) ?? processName;
+		}
+
+		/// <summary>
+		/// After windows moved between scenes: an app whose windows now all share one scene belongs to that scene
+		/// from now on (or to its own again, if that scene is keyed by the app itself).
+		/// </summary>
+		private void LearnGroups(params Scene[] scenes)
+		{
+			var processes = scenes.SelectMany(s => s.Windows).Select(w => w.ProcessName).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+
+			foreach (var processName in processes)
+			{
+				if (_settings.AppGroups.ContainsKey(processName) || _settings.IsSeparateWindowApp(processName))
+					continue;
+
+				var homes = _scenes.Where(s => s.Windows.Any(w => string.Equals(w.ProcessName, processName, StringComparison.OrdinalIgnoreCase))).ToArray();
+				if (homes.Length != 1)
+					continue;
+
+				var key = homes[0].Key;
+
+				if (string.Equals(key, processName, StringComparison.OrdinalIgnoreCase))
+					_groups.Forget(processName);
+				else if (!key.Contains(WindowKeySeparator)) // a single-window scene's key dies with that window
+					_groups.Remember(processName, key);
+			}
+		}
+
+		/// <summary>
+		/// Drops the app sets learned from moving windows; existing scenes stay as they are until windows reopen.
+		/// </summary>
+		public void ForgetLearnedGroups() => _groups.Clear();
 	}
 }
