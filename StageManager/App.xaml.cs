@@ -1,5 +1,6 @@
 ﻿using AsyncAwaitBestPractices;
 using StageManager.Diagnostics;
+using StageManager.Strategies;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,6 +34,7 @@ namespace StageManager
 
 			Log.Info("Started");
 			Settings.Load();
+			OffScreenWindowStrategy.RecoverFromUncleanExit();
 			base.OnStartup(e);
 
 			// created here rather than via StartupUri so a second instance never builds a window that grabs the desktop
