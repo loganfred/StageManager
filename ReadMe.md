@@ -87,3 +87,7 @@ Contributions very welcome :heart:
 ---
 
 Stage Manager is using a few code files to handle window tracking from [workspacer](https://github.com/workspacer/workspacer), an amazing open source project by [Rick Button](https://github.com/rickbutton).
+
+## License
+
+MIT, see [LICENSE](LICENSE). Code adapted from other projects keeps its original license; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
