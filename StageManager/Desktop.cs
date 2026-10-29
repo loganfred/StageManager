@@ -1,4 +1,5 @@
 ﻿using Microsoft.Win32;
+using StageManager.Diagnostics;
 using StageManager.Native.PInvoke;
 using System;
 using System.Runtime.InteropServices;
@@ -22,6 +23,16 @@ namespace StageManager
 
 		private const int WM_COMMAND = 0x111;
 		private IntPtr _desktopViewHandle;
+
+		public Desktop()
+		{
+			OriginalIconsVisible = RecoveryJournal.Begin(GetDesktopIconsVisible());
+		}
+
+		/// <summary>
+		/// Desktop icon visibility before Stage Manager started (survives an unclean exit via <see cref="RecoveryJournal"/>).
+		/// </summary>
+		public bool OriginalIconsVisible { get; }
 
 		public void TrySetDesktopView(IntPtr handle)
 		{
@@ -58,6 +69,14 @@ namespace StageManager
 		{
 			if (GetDesktopIconsVisible())
 				ToggleDesktopIcons();
+		}
+
+		public void RestoreIcons()
+		{
+			if (OriginalIconsVisible)
+				ShowIcons();
+			else
+				HideIcons();
 		}
 
 		static IntPtr GetDesktopSHELLDLL_DefView()

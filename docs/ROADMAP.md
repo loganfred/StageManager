@@ -21,14 +21,14 @@ Goal: take this prototype to something reliable for daily use. Each item lands o
 - [x] Removed dead P/Invokes (`CreateFile`, console and system-menu APIs); kept the alternative hide strategies for the cloak work
 
 ## Phase 1: Never leave the desktop broken (`fix/crash-safe-restore`)
-- [ ] Global exception handlers (`DispatcherUnhandledException`, `AppDomain.UnhandledException`, `TaskScheduler.UnobservedTaskException`) that log and restore windows and icons
-- [ ] Null-safe, idempotent `SceneManager.Stop()`
-- [ ] Restore the original desktop-icon state on exit, not "always show"
-- [ ] Single-instance mutex
-- [ ] Tray "Pause / Restore all windows" plus a global hotkey
+- [x] Global exception handlers (`DispatcherUnhandledException`, `AppDomain.UnhandledException`, `TaskScheduler.UnobservedTaskException`) that log and restore windows and icons
+- [x] Null-safe, idempotent `SceneManager.Stop()`
+- [x] Restore the original desktop-icon state on exit, not "always show" (kept in `session.txt`, so it survives a killed session)
+- [x] Single-instance mutex
+- [x] Tray "Pause" (shows all windows) plus the global hotkey Ctrl+Alt+Shift+P
 
 ## Phase 2: Correctness and threading (`fix/threading`)
-- [ ] Move `OverlapCheck` to the dispatcher, or snapshot scenes under a lock
+- [ ] Move `OverlapCheck` to the dispatcher, or snapshot scenes under a lock (for now it catches and logs its own exceptions)
 - [ ] Use one global mouse hook (SharpHook's keyboard hook is already gone)
 - [ ] Recover from Explorer restarts (`TaskbarCreated`, re-resolve `WorkerW`)
 - [ ] Deliberately skip elevated windows (UIPI)

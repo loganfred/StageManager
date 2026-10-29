@@ -2,6 +2,7 @@
 using Microsoft.Xaml.Behaviors.Core;
 using SharpHook;
 using SharpHook.Data;
+using StageManager.Diagnostics;
 using StageManager.Model;
 using StageManager.Native;
 using StageManager.Native.PInvoke;
@@ -16,6 +17,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 
@@ -29,6 +31,8 @@ namespace StageManager
 		private const int TIMERINTERVAL_MILLISECONDS = 500;
 		private const int MAX_SCENES = 6;
 		private const string APP_NAME = "StageManager";
+		private const int PAUSE_HOTKEY_ID = 0x5347; // arbitrary, unique within this window
+		private const string PAUSE_HOTKEY_TEXT = "Ctrl+Alt+Shift+P";
 		private IntPtr _thisHandle;
 		private TaskPoolGlobalHook _hook;
 		private WindowMode _mode;
@@ -62,13 +66,55 @@ namespace StageManager
 			StartHook();	
 		}
 
+		protected override void OnSourceInitialized(EventArgs e)
+		{
+			base.OnSourceInitialized(e);
+
+			var handle = new WindowInteropHelper(this).Handle;
+			HwndSource.FromHwnd(handle)?.AddHook(WndProc);
+
+			if (!Win32.RegisterHotKey(handle, PAUSE_HOTKEY_ID, Win32.MOD_CONTROL | Win32.MOD_ALT | Win32.MOD_SHIFT | Win32.MOD_NOREPEAT, (uint)KeyInterop.VirtualKeyFromKey(Key.P)))
+				Log.Error($"Could not register the {PAUSE_HOTKEY_TEXT} hotkey (Win32 error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}); pause is still available from the tray menu");
+		}
+
+		private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+		{
+			if (msg == Win32.WM_HOTKEY && wParam.ToInt32() == PAUSE_HOTKEY_ID)
+			{
+				TogglePause();
+				handled = true;
+			}
+
+			return IntPtr.Zero;
+		}
+
+		private void TogglePause()
+		{
+			if (SceneManager is null)
+				return;
+
+			if (SceneManager.IsPaused)
+			{
+				Show();
+				SceneManager.Resume();
+			}
+			else
+			{
+				SceneManager.Pause();
+				Hide();
+			}
+
+			pauseMenuItem.IsChecked = SceneManager.IsPaused;
+		}
+
 		protected override void OnClosed(EventArgs e)
 		{
+			Win32.UnregisterHotKey(new WindowInteropHelper(this).Handle, PAUSE_HOTKEY_ID);
 			StopHook();
 
 			trayIcon.Dispose();
 
-			SceneManager.Stop();
+			SceneManager?.Stop();
 
 			base.OnClosed(e);
 
@@ -339,8 +385,20 @@ namespace StageManager
 
 		private void OverlapCheck(object? _)
 		{
-			var currentWindows = SceneManager.GetCurrentWindows().ToArray(); // in case the enumeration changes
-			UpdateModeByWindows(currentWindows);
+			var sceneManager = SceneManager;
+			if (sceneManager is null || sceneManager.IsPaused)
+				return;
+
+			// runs on a thread-pool thread: an exception here would otherwise terminate the process
+			try
+			{
+				var currentWindows = sceneManager.GetCurrentWindows().ToArray(); // in case the enumeration changes
+				UpdateModeByWindows(currentWindows);
+			}
+			catch (Exception ex)
+			{
+				Log.Error("Overlap check failed", ex);
+			}
 		}
 
 		private void UpdateModeByWindows(IEnumerable<IWindow> windows)
@@ -380,6 +438,11 @@ namespace StageManager
 		private void MenuItem_ProjectPage_Click(object sender, RoutedEventArgs e)
 		{
 			NavigateToProjectPage();
+		}
+
+		private void MenuItem_Pause_Click(object sender, RoutedEventArgs e)
+		{
+			TogglePause();
 		}
 
 		private void MenuItem_Quit_Click(object sender, RoutedEventArgs e)
