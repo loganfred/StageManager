@@ -162,7 +162,7 @@ namespace StageManager
 
 			var windowsManager = new WindowsManager();
 			IWindowStrategy strategy = Settings.Current.HideStrategy == HideStrategies.OffScreen ? new OffScreenWindowStrategy() : new NormalizeAndMinimizeWindowStrategy();
-			SceneManager = new SceneManager(windowsManager, new Desktop(), strategy, Settings.Current);
+			SceneManager = new SceneManager(windowsManager, new Desktop(), strategy, Settings.Current, GroupMemory.Load(GroupMemory.DefaultFilePath));
 			await SceneManager.Start().ConfigureAwait(true);
 
 			SceneManager.SceneChanged += SceneManager_SceneChanged;
@@ -482,6 +482,11 @@ namespace StageManager
 			{
 				Log.Error($"Could not open {Settings.FilePath}", ex);
 			}
+		}
+
+		private void MenuItem_ForgetSets_Click(object sender, RoutedEventArgs e)
+		{
+			SceneManager?.ForgetLearnedGroups();
 		}
 
 		private void MenuItem_Pause_Click(object sender, RoutedEventArgs e)

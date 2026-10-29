@@ -127,13 +127,15 @@ namespace StageManager.Tests
 	/// <summary>A <see cref="SceneManager"/> wired to fakes.</summary>
 	internal sealed class Harness
 	{
-		public Harness(Settings? settings = null)
+		public Harness(Settings? settings = null, GroupMemory? groups = null)
 		{
 			Settings = settings ?? new Settings();
-			Scenes = new SceneManager(Windows, Desktop, Strategy, Settings) { ReentrancyWindow = TimeSpan.Zero };
+			Groups = groups ?? new GroupMemory();
+			Scenes = new SceneManager(Windows, Desktop, Strategy, Settings, Groups) { ReentrancyWindow = TimeSpan.Zero };
 		}
 
 		public Settings Settings { get; }
+		public GroupMemory Groups { get; }
 		public FakeWindowsManager Windows { get; } = new();
 		public FakeDesktop Desktop { get; } = new();
 		public FakeWindowStrategy Strategy { get; } = new();
@@ -150,5 +152,7 @@ namespace StageManager.Tests
 		public Scene SceneOf(IWindow window) => Scenes.FindSceneForWindow(window) ?? throw new InvalidOperationException($"{window} has no scene");
 
 		public void SwitchTo(Scene? scene) => Scenes.SwitchTo(scene).GetAwaiter().GetResult();
+
+		public void Move(IWindow window, Scene target) => Scenes.MoveWindow(SceneOf(window), window, target).GetAwaiter().GetResult();
 	}
 }

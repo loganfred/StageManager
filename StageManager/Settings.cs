@@ -60,6 +60,12 @@ namespace StageManager
 		/// <summary>Window class names that are never managed, in addition to the built-in shell list.</summary>
 		public List<string> IgnoredWindowClasses { get; set; } = new();
 
+		/// <summary>Give every window its own scene instead of grouping by app (macOS: "one at a time").</summary>
+		public bool OneWindowPerScene { get; set; } = false;
+
+		/// <summary>Process names whose windows each get their own scene, e.g. ["Teams", "OUTLOOK"].</summary>
+		public List<string> SeparateWindowApps { get; set; } = new();
+
 		/// <summary>
 		/// Process name → group name. Processes mapped to the same group share one scene,
 		/// e.g. { "msedge": "Browsers", "chrome": "Browsers" }. Unlisted processes get their own scene.
@@ -107,12 +113,16 @@ namespace StageManager
 			HideStrategy = HideStrategies.All.FirstOrDefault(s => string.Equals(s, HideStrategy, StringComparison.OrdinalIgnoreCase)) ?? defaults.HideStrategy;
 			IgnoredProcesses ??= new();
 			IgnoredWindowClasses ??= new();
+			SeparateWindowApps ??= new();
 			AppGroups = new Dictionary<string, string>(
 				(AppGroups ?? new()).Where(p => !string.IsNullOrWhiteSpace(p.Value)),
 				StringComparer.OrdinalIgnoreCase);
 
 			return this;
 		}
+
+		public bool IsSeparateWindowApp(string processName) =>
+			OneWindowPerScene || SeparateWindowApps.Contains(processName, StringComparer.OrdinalIgnoreCase);
 
 		public string GetGroupKey(string processName) => AppGroups.TryGetValue(processName, out var group) ? group : processName;
 

@@ -135,6 +135,10 @@
                         IsCheckable="True"
                         IsChecked="{Binding StartsWithWindows}" />
                     <MenuItem
+                        Header="Forget app sets"
+                        ToolTip="New windows open in their own app's scene again instead of the scene you last moved that app into"
+                        Click="MenuItem_ForgetSets_Click" />
+                    <MenuItem
                         Header="Settings (applies after restart)"
                         Click="MenuItem_Settings_Click" />
                     <MenuItem

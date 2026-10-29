@@ -34,6 +34,10 @@ On first run the app writes its defaults to `%APPDATA%\StageManager\settings.jso
 | `IgnoredProcesses` | `[]` | Process names (no `.exe`) to never manage, e.g. `["KeePassXC"]` |
 | `IgnoredWindowClasses` | `[]` | Window classes to never manage |
 | `AppGroups` | `{}` | Put several apps in one scene, e.g. `{"msedge": "Browsers", "chrome": "Browsers"}` |
+| `OneWindowPerScene` | `false` | Give every window its own scene instead of grouping windows by app |
+| `SeparateWindowApps` | `[]` | Apps whose windows each get their own scene, e.g. `["Teams", "OUTLOOK"]` |
+
+**App sets:** when you move every window of an app into another scene (by dragging, or Shift+clicking a scene to add it to the current one), Stage Manager remembers it. New windows of that app open in that scene, and the set is rebuilt after a restart. The tray's *Forget app sets* undoes this. Learned sets live in `%LOCALAPPDATA%\StageManager\groups.json`; `AppGroups` in the settings always wins.
 
 Logs are in `%LOCALAPPDATA%\StageManager\stagemanager.log` (the previous one is kept as `stagemanager.1.log` once it passes 1 MB).
  
